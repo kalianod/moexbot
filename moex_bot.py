@@ -28,10 +28,37 @@ logger = logging.getLogger(__name__)
 
 class MoexSignalBot:
     def __init__(self, telegram_token, chat_id):
-        self.bot = Bot(token=telegram_token)
+        self.telegram_token = telegram_token
         self.chat_id = chat_id
         self.index_ticker = 'IMOEX'  # Индекс Мосбиржи
         
+        # Проверяем настройки при инициализации
+        self.check_settings()
+        
+        # Создаем бота только после успешной проверки
+        self.bot = Bot(token=telegram_token)
+    
+    def check_settings(self):
+        """Проверка всех необходимых настроек"""
+        missing_settings = []
+        
+        if not self.telegram_token:
+            missing_settings.append("TELEGRAM_TOKEN")
+        if not self.chat_id:
+            missing_settings.append("TELEGRAM_CHAT_ID")
+        
+        if missing_settings:
+            error_msg = f"❌ Отсутствуют настройки в .env файле: {', '.join(missing_settings)}\n"
+            error_msg += "📝 Проверьте что:\n"
+            error_msg += "1. Файл .env существует в папке проекта\n"
+            error_msg += "2. В файле есть TELEGRAM_TOKEN и TELEGRAM_CHAT_ID\n"
+            error_msg += "3. Формат файла правильный: КЛЮЧ=ЗНАЧЕНИЕ\n"
+            error_msg += "4. Нет лишних пробелов вокруг ="
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        logger.info("✅ Все настройки загружены корректно")
+    
     async def send_message(self, text):
         """Отправка сообщения в Telegram"""
         try:
@@ -159,34 +186,68 @@ class MoexSignalBot:
                 f"🔔 Условие: Закрытие < Low предыдущей свечи - 0.5%"
             )
 
+def check_env_file():
+    """Проверка существования и содержания .env файла"""
+    env_path = os.path.join(os.path.dirname(__file__), '.env')
+    
+    if not os.path.exists(env_path):
+        print(f"❌ Файл .env не найден по пути: {env_path}")
+        print("📝 Создайте файл .env с содержимым:")
+        print("TELEGRAM_TOKEN=your_telegram_bot_token")
+        print("TELEGRAM_CHAT_ID=your_chat_id")
+        return False
+    
+    # Проверяем содержимое файла
+    with open(env_path, 'r') as f:
+        content = f.read()
+    
+    lines = [line.strip() for line in content.split('\n') if line.strip() and not line.strip().startswith('#')]
+    
+    has_token = any(line.startswith('TELEGRAM_TOKEN=') for line in lines)
+    has_chat_id = any(line.startswith('TELEGRAM_CHAT_ID=') for line in lines)
+    
+    if not has_token:
+        print("❌ В файле .env отсутствует TELEGRAM_TOKEN")
+    if not has_chat_id:
+        print("❌ В файле .env отсутствует TELEGRAM_CHAT_ID")
+    
+    if not has_token or not has_chat_id:
+        print("\n📝 Пример правильного .env файла:")
+        print("TELEGRAM_TOKEN=1234567890:ABCdefGHIjklMNopQRstUVwxyZ-abc123")
+        print("TELEGRAM_CHAT_ID=123456789")
+        return False
+    
+    return True
+
 async def main():
-    # Проверяем конфигурацию
-    if not TELEGRAM_TOKEN:
-        print("❌ TELEGRAM_TOKEN не найден. Проверьте файл .env")
+    # Проверяем .env файл
+    if not check_env_file():
         return
+    
+    try:
+        # Создаем бота (проверка настроек происходит в __init__)
+        bot = MoexSignalBot(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID)
         
-    if not TELEGRAM_CHAT_ID:
-        print("❌ TELEGRAM_CHAT_ID не найден. Проверьте файл .env")
-        return
-    
-    # Создаем бота
-    bot = MoexSignalBot(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID)
-    
-    # Отправляем тестовое сообщение
-    await bot.send_message("🤖 Бот сигналов Мосбиржи запущен! (VENV + .env)")
-    
-    # Первая проверка
-    await bot.check_and_send_signals()
-    
-    # Планировщик для регулярных проверок
-    schedule.every().day.at("19:00").do(
-        lambda: asyncio.create_task(bot.check_and_send_signals())
-    )
-    
-    # Бесконечный цикл
-    while True:
-        schedule.run_pending()
-        await asyncio.sleep(60)
+        # Отправляем тестовое сообщение
+        await bot.send_message("🤖 Бот сигналов Мосбиржи запущен! (VENV + .env)")
+        
+        # Первая проверка
+        await bot.check_and_send_signals()
+        
+        # Планировщик для регулярных проверок
+        schedule.every().day.at("19:00").do(
+            lambda: asyncio.create_task(bot.check_and_send_signals())
+        )
+        
+        # Бесконечный цикл
+        while True:
+            schedule.run_pending()
+            await asyncio.sleep(60)
+            
+    except ValueError as e:
+        print(f"❌ Ошибка конфигурации: {e}")
+    except Exception as e:
+        print(f"❌ Неожиданная ошибка: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
