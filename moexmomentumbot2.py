@@ -71,8 +71,9 @@ class MOEXDataFetcher:
     """Класс для получения данных с Московской биржи"""
     
     def __init__(self):
-        # Список популярных акций Мосбиржи
+        # Расширенный список акций Мосбиржи (100 акций)
         self.popular_stocks = [
+            # Первый эшелон (30 акций)
             {'symbol': 'SBER', 'name': 'Сбербанк', 'sector': 'Финансы'},
             {'symbol': 'GAZP', 'name': 'Газпром', 'sector': 'Нефть и газ'},
             {'symbol': 'LKOH', 'name': 'Лукойл', 'sector': 'Нефть и газ'},
@@ -103,6 +104,173 @@ class MOEXDataFetcher:
             {'symbol': 'MAGN', 'name': 'ММК', 'sector': 'Металлургия'},
             {'symbol': 'AFKS', 'name': 'Система', 'sector': 'Холдинги'},
             {'symbol': 'AFLT', 'name': 'Аэрофлот', 'sector': 'Транспорт'},
+            # Второй эшелон (70 акций)
+            {'symbol': 'BANEP', 'name': 'Башнефть-п', 'sector': 'Нефть и газ'},
+            {'symbol': 'BSPB', 'name': 'Банк Санкт-Петербург', 'sector': 'Финансы'},
+            {'symbol': 'CBOM', 'name': 'МКБ', 'sector': 'Финансы'},
+            {'symbol': 'CIAN', 'name': 'ЦИАН', 'sector': 'IT'},
+            {'symbol': 'CNTL', 'name': 'Центральный Телеграф', 'sector': 'Телеком'},
+            {'symbol': 'CNTLP', 'name': 'Центральный Телеграф-п', 'sector': 'Телеком'},
+            {'symbol': 'DIAS', 'name': 'Детский мир', 'sector': 'Розничная торговля'},
+            {'symbol': 'DVEC', 'name': 'ДЭК', 'sector': 'Энергетика'},
+            {'symbol': 'ELFV', 'name': 'ЭЛ5-Энерго', 'sector': 'Энергетика'},
+            {'symbol': 'ENPG', 'name': 'Энергопром', 'sector': 'Энергетика'},
+            {'symbol': 'ETLN', 'name': 'ETLN', 'sector': 'Финансы'},
+            {'symbol': 'FIXP', 'name': 'ФИКС Прей', 'sector': 'Финансы'},
+            {'symbol': 'FLOT', 'name': 'Совкомфлот', 'sector': 'Транспорт'},
+            {'symbol': 'GCHE', 'name': 'Черкизово', 'sector': 'Пищевая'},
+            {'symbol': 'GLTR', 'name': 'Globaltrans', 'sector': 'Транспорт'},
+            {'symbol': 'HNFG', 'name': 'Хенкель', 'sector': 'Химия'},
+            {'symbol': 'IGST', 'name': 'Ижсталь', 'sector': 'Металлургия'},
+            {'symbol': 'INGR', 'name': 'ИНГРАД', 'sector': 'Недвижимость'},
+            {'symbol': 'IRKT', 'name': 'Иркутскэнерго', 'sector': 'Энергетика'},
+            {'symbol': 'KAZT', 'name': 'КуйбышевАзот', 'sector': 'Химия'},
+            {'symbol': 'KBSB', 'name': 'Кузбассэнергосбыт', 'sector': 'Энергетика'},
+            {'symbol': 'KLSB', 'name': 'Калужская сбытовая', 'sector': 'Энергетика'},
+            {'symbol': 'KMAZ', 'name': 'КАМАЗ', 'sector': 'Машиностроение'},
+            {'symbol': 'KROT', 'name': 'Красный Октябрь', 'sector': 'Пищевая'},
+            {'symbol': 'KTSB', 'name': 'Костромская сбытовая', 'sector': 'Энергетика'},
+            {'symbol': 'KUBE', 'name': 'Кубаньэнерго', 'sector': 'Энергетика'},
+            {'symbol': 'KZOS', 'name': 'Казаньоргсинтез', 'sector': 'Химия'},
+            {'symbol': 'LENT', 'name': 'Лента', 'sector': 'Розничная торговля'},
+            {'symbol': 'LIFE', 'name': 'Фармсинтез', 'sector': 'Фармацевтика'},
+            {'symbol': 'LKOH', 'name': 'Лукойл', 'sector': 'Нефть и газ'},
+            {'symbol': 'LNZL', 'name': 'Лензолото', 'sector': 'Металлургия'},
+            {'symbol': 'LNZLP', 'name': 'Лензолото-п', 'sector': 'Металлургия'},
+            {'symbol': 'LSRG', 'name': 'ЛСР', 'sector': 'Строительство'},
+            {'symbol': 'LVHK', 'name': 'Левенгук', 'sector': 'Фармацевтика'},
+            {'symbol': 'MAGN', 'name': 'ММК', 'sector': 'Металлургия'},
+            {'symbol': 'MDMG', 'name': 'М.Видео', 'sector': 'Розничная торговля'},
+            {'symbol': 'MFON', 'name': 'МегаФон', 'sector': 'Телеком'},
+            {'symbol': 'MGNT', 'name': 'Магнит', 'sector': 'Розничная торговля'},
+            {'symbol': 'MGTSP', 'name': 'МГТС', 'sector': 'Телеком'},
+            {'symbol': 'MISB', 'name': 'Михайловский ГОК', 'sector': 'Металлургия'},
+            {'symbol': 'MISBP', 'name': 'Михайловский ГОК-п', 'sector': 'Металлургия'},
+            {'symbol': 'MOEX', 'name': 'Московская биржа', 'sector': 'Финансы'},
+            {'symbol': 'MRKC', 'name': 'МРСК Центра', 'sector': 'Энергетика'},
+            {'symbol': 'MRKK', 'name': 'МРСК Юга', 'sector': 'Энергетика'},
+            {'symbol': 'MRKP', 'name': 'МРСК Поволжья', 'sector': 'Энергетика'},
+            {'symbol': 'MRKS', 'name': 'МРСК Сибири', 'sector': 'Энергетика'},
+            {'symbol': 'MRKU', 'name': 'МРСК Урала', 'sector': 'Энергетика'},
+            {'symbol': 'MRKV', 'name': 'МРСК Волги', 'sector': 'Энергетика'},
+            {'symbol': 'MRKY', 'name': 'МРСК Северо-Запада', 'sector': 'Энергетика'},
+            {'symbol': 'MRKZ', 'name': 'МРСК Северного Кавказа', 'sector': 'Энергетика'},
+            {'symbol': 'MRSB', 'name': 'Мордовская сбытовая', 'sector': 'Энергетика'},
+            {'symbol': 'MSNG', 'name': 'Мосэнерго', 'sector': 'Энергетика'},
+            {'symbol': 'MSRS', 'name': 'МСР-Энерго', 'sector': 'Энергетика'},
+            {'symbol': 'MSTT', 'name': 'Мостотрест', 'sector': 'Строительство'},
+            {'symbol': 'MTLR', 'name': 'Мечел', 'sector': 'Металлургия'},
+            {'symbol': 'MTLRP', 'name': 'Мечел-п', 'sector': 'Металлургия'},
+            {'symbol': 'MTSS', 'name': 'МТС', 'sector': 'Телеком'},
+            {'symbol': 'MVID', 'name': 'М.Видео', 'sector': 'Розничная торговля'},
+            {'symbol': 'NAUK', 'name': 'Наука-Связь', 'sector': 'Телеком'},
+            {'symbol': 'NFAZ', 'name': 'НефАЗ', 'sector': 'Машиностроение'},
+            {'symbol': 'NKHP', 'name': 'НКХП', 'sector': 'Химия'},
+            {'symbol': 'NKNC', 'name': 'Нижнекамскнефтехим', 'sector': 'Химия'},
+            {'symbol': 'NKNCP', 'name': 'Нижнекамскнефтехим-п', 'sector': 'Химия'},
+            {'symbol': 'NKSH', 'name': 'Нижнекамскшина', 'sector': 'Химия'},
+            {'symbol': 'NLMK', 'name': 'НЛМК', 'sector': 'Металлургия'},
+            {'symbol': 'NMTP', 'name': 'НМТП', 'sector': 'Транспорт'},
+            {'symbol': 'NNSB', 'name': 'ТНС энерго НН', 'sector': 'Энергетика'},
+            {'symbol': 'NNSBP', 'name': 'ТНС энерго НН-п', 'sector': 'Энергетика'},
+            {'symbol': 'NSVZ', 'name': 'Наука-Связь-п', 'sector': 'Телеком'},
+            {'symbol': 'NVTK', 'name': 'Новатэк', 'sector': 'Нефть и газ'},
+            {'symbol': 'OGKB', 'name': 'ОГК-2', 'sector': 'Энергетика'},
+            {'symbol': 'OKEY', 'name': 'ОКЕЙ', 'sector': 'Розничная торговля'},
+            {'symbol': 'OMZZP', 'name': 'ОМЗ-п', 'sector': 'Машиностроение'},
+            {'symbol': 'OZON', 'name': 'Ozon', 'sector': 'Розничная торговля'},
+            {'symbol': 'PAZA', 'name': 'Павловский автобус', 'sector': 'Машиностроение'},
+            {'symbol': 'PHOR', 'name': 'ФосАгро', 'sector': 'Химия'},
+            {'symbol': 'PIKK', 'name': 'ПИК', 'sector': 'Недвижимость'},
+            {'symbol': 'PLZL', 'name': 'Полюс', 'sector': 'Металлургия'},
+            {'symbol': 'PMSB', 'name': 'Пермская сбытовая', 'sector': 'Энергетика'},
+            {'symbol': 'POLY', 'name': 'Полиметалл', 'sector': 'Металлургия'},
+            {'symbol': 'POSI', 'name': 'Позитив Технолоджис', 'sector': 'IT'},
+            {'symbol': 'PRFN', 'name': 'Челябинский трубопрокатный', 'sector': 'Металлургия'},
+            {'symbol': 'PRMB', 'name': 'Приморье', 'sector': 'Энергетика'},
+            {'symbol': 'QIWI', 'name': 'КИВИ', 'sector': 'Финансы'},
+            {'symbol': 'RASP', 'name': 'Распадская', 'sector': 'Металлургия'},
+            {'symbol': 'RBCM', 'name': 'РосБизнесКонсалтинг', 'sector': 'Медиа'},
+            {'symbol': 'RDRB', 'name': 'РДБ Банк', 'sector': 'Финансы'},
+            {'symbol': 'RENI', 'name': 'Ренессанс Страхование', 'sector': 'Финансы'},
+            {'symbol': 'RGSS', 'name': 'Росгосстрах', 'sector': 'Финансы'},
+            {'symbol': 'RKKE', 'name': 'РКК Энергия', 'sector': 'Космос'},
+            {'symbol': 'RNFT', 'name': 'РуссНефть', 'sector': 'Нефть и газ'},
+            {'symbol': 'ROLO', 'name': 'Русолово', 'sector': 'Сельское хозяйство'},
+            {'symbol': 'ROSN', 'name': 'Роснефть', 'sector': 'Нефть и газ'},
+            {'symbol': 'ROST', 'name': 'Росинтер', 'sector': 'Рестораны'},
+            {'symbol': 'RTGZ', 'name': 'Газпром газораспределение', 'sector': 'Нефть и газ'},
+            {'symbol': 'RTKM', 'name': 'Ростелеком', 'sector': 'Телеком'},
+            {'symbol': 'RTKMP', 'name': 'Ростелеком-п', 'sector': 'Телеком'},
+            {'symbol': 'RTSB', 'name': 'Ростовская сбытовая', 'sector': 'Энергетика'},
+            {'symbol': 'RTSBP', 'name': 'Ростовская сбытовая-п', 'sector': 'Энергетика'},
+            {'symbol': 'RUAL', 'name': 'РУСАЛ', 'sector': 'Металлургия'},
+            {'symbol': 'RUGR', 'name': 'Русгрэйн', 'sector': 'Сельское хозяйство'},
+            {'symbol': 'RUSI', 'name': 'ИнвестЛизинг', 'sector': 'Финансы'},
+            {'symbol': 'RZSB', 'name': 'Рязанская сбытовая', 'sector': 'Энергетика'},
+            {'symbol': 'SAGO', 'name': 'Самараэнерго', 'sector': 'Энергетика'},
+            {'symbol': 'SAGOP', 'name': 'Самараэнерго-п', 'sector': 'Энергетика'},
+            {'symbol': 'SARE', 'name': 'Саратовэнерго', 'sector': 'Энергетика'},
+            {'symbol': 'SAREP', 'name': 'Саратовэнерго-п', 'sector': 'Энергетика'},
+            {'symbol': 'SBER', 'name': 'Сбербанк', 'sector': 'Финансы'},
+            {'symbol': 'SBERP', 'name': 'Сбербанк-п', 'sector': 'Финансы'},
+            {'symbol': 'SELG', 'name': 'Селигдар', 'sector': 'Металлургия'},
+            {'symbol': 'SFIN', 'name': 'ЭсЭфАй', 'sector': 'Финансы'},
+            {'symbol': 'SGZH', 'name': 'Сегежа', 'sector': 'Лесная промышленность'},
+            {'symbol': 'SIBN', 'name': 'Газпром нефть', 'sector': 'Нефть и газ'},
+            {'symbol': 'SLEN', 'name': 'Селенга', 'sector': 'Энергетика'},
+            {'symbol': 'SMLT', 'name': 'Самолет', 'sector': 'Недвижимость'},
+            {'symbol': 'SNGS', 'name': 'Сургутнефтегаз', 'sector': 'Нефть и газ'},
+            {'symbol': 'SNGSP', 'name': 'Сургутнефтегаз-п', 'sector': 'Нефть и газ'},
+            {'symbol': 'SPBE', 'name': 'СПБ Биржа', 'sector': 'Финансы'},
+            {'symbol': 'STSB', 'name': 'Стартовая сбытовая', 'sector': 'Энергетика'},
+            {'symbol': 'STSBP', 'name': 'Стартовая сбытовая-п', 'sector': 'Энергетика'},
+            {'symbol': 'SVAV', 'name': 'Соллерс', 'sector': 'Машиностроение'},
+            {'symbol': 'SYNG', 'name': 'Синэнерго', 'sector': 'Энергетика'},
+            {'symbol': 'TASB', 'name': 'Тамбовская сбытовая', 'sector': 'Энергетика'},
+            {'symbol': 'TASBP', 'name': 'Тамбовская сбытовая-п', 'sector': 'Энергетика'},
+            {'symbol': 'TATN', 'name': 'Татнефть', 'sector': 'Нефть и газ'},
+            {'symbol': 'TATNP', 'name': 'Татнефть-п', 'sector': 'Нефть и газ'},
+            {'symbol': 'TCSG', 'name': 'TCS Group', 'sector': 'Финансы'},
+            {'symbol': 'TGKA', 'name': 'ТГК-1', 'sector': 'Энергетика'},
+            {'symbol': 'TGKB', 'name': 'ТГК-2', 'sector': 'Энергетика'},
+            {'symbol': 'TGKBP', 'name': 'ТГК-2-п', 'sector': 'Энергетика'},
+            {'symbol': 'TGKD', 'name': 'ТГК-11', 'sector': 'Энергетика'},
+            {'symbol': 'TGKDP', 'name': 'ТГК-11-п', 'sector': 'Энергетика'},
+            {'symbol': 'TKEL', 'name': 'ТКЗ Энерго', 'sector': 'Энергетика'},
+            {'symbol': 'TMOS', 'name': 'Томская распределительная', 'sector': 'Энергетика'},
+            {'symbol': 'TRFM', 'name': 'ТрансФин-М', 'sector': 'Финансы'},
+            {'symbol': 'TRNFP', 'name': 'Транснефть-п', 'sector': 'Нефть и газ'},
+            {'symbol': 'TUZA', 'name': 'Туймазинский завод', 'sector': 'Машиностроение'},
+            {'symbol': 'UCSS', 'name': 'Корпорация ЮСИС', 'sector': 'IT'},
+            {'symbol': 'UKUZ', 'name': 'Южный Кузбасс', 'sector': 'Металлургия'},
+            {'symbol': 'UNAC', 'name': 'Объединенная авиастроительная', 'sector': 'Авиастроение'},
+            {'symbol': 'UNKL', 'name': 'Южно-Уральский никель', 'sector': 'Металлургия'},
+            {'symbol': 'UPRO', 'name': 'Юнипро', 'sector': 'Энергетика'},
+            {'symbol': 'URKZ', 'name': 'Уральская кузница', 'sector': 'Металлургия'},
+            {'symbol': 'USBN', 'name': 'Уралсиб', 'sector': 'Финансы'},
+            {'symbol': 'VEON-RX', 'name': 'VEON', 'sector': 'Телеком'},
+            {'symbol': 'VGSB', 'name': 'Волгоградская сбытовая', 'sector': 'Энергетика'},
+            {'symbol': 'VGSBP', 'name': 'Волгоградская сбытовая-п', 'sector': 'Энергетика'},
+            {'symbol': 'VJGZ', 'name': 'Варьеганнефтегаз', 'sector': 'Нефть и газ'},
+            {'symbol': 'VJGZP', 'name': 'Варьеганнефтегаз-п', 'sector': 'Нефть и газ'},
+            {'symbol': 'VLHZ', 'name': 'Владимирский химический', 'sector': 'Химия'},
+            {'symbol': 'VRSB', 'name': 'ТНС энерго ВР', 'sector': 'Энергетика'},
+            {'symbol': 'VRSBP', 'name': 'ТНС энерго ВР-п', 'sector': 'Энергетика'},
+            {'symbol': 'VSMO', 'name': 'ВСМПО-АВИСМА', 'sector': 'Металлургия'},
+            {'symbol': 'VSYD', 'name': 'Выборгский судостроительный', 'sector': 'Судостроение'},
+            {'symbol': 'VSYDP', 'name': 'Выборгский судостроительный-п', 'sector': 'Судостроение'},
+            {'symbol': 'VTBR', 'name': 'ВТБ', 'sector': 'Финансы'},
+            {'symbol': 'WTCM', 'name': 'ЦМТ', 'sector': 'Металлургия'},
+            {'symbol': 'WTCMP', 'name': 'ЦМТ-п', 'sector': 'Металлургия'},
+            {'symbol': 'YAKG', 'name': 'Якутскэнерго', 'sector': 'Энергетика'},
+            {'symbol': 'YKEN', 'name': 'Якутская топливно-энергетическая', 'sector': 'Энергетика'},
+            {'symbol': 'YKENP', 'name': 'Якутская топливно-энергетическая-п', 'sector': 'Энергетика'},
+            {'symbol': 'YNDX', 'name': 'Яндекс', 'sector': 'IT'},
+            {'symbol': 'YRSB', 'name': 'ТНС энерго Яр', 'sector': 'Энергетика'},
+            {'symbol': 'YRSBP', 'name': 'ТНС энерго Яр-п', 'sector': 'Энергетика'},
+            {'symbol': 'ZILL', 'name': 'ЗИЛ', 'sector': 'Машиностроение'},
+            {'symbol': 'ZVEZ', 'name': 'ЗВЕЗДА', 'sector': 'Машиностроение'},
         ]
         
         # Индексы
@@ -222,21 +390,21 @@ class MomentumBotMOEX:
         self.data_fetcher = MOEXDataFetcher()
         
         # Параметры стратегии
-        self.top_assets_count = 30  # Уменьшил для тестирования
-        self.selected_count = 5     # Уменьшил для тестирования
+        self.top_assets_count = 100  # Увеличил для работы со всеми акциями
+        self.selected_count = 5     # Выбираем 5 лучших
         self.check_interval = 3600  # Проверка каждый час для тестирования
         
-        # Критерии фильтрации
-        self.min_12m_momentum = 5.0
-        self.min_volume_24h = 1000000   # 1 млн руб (уменьшил для тестирования)
-        self.min_price = 1              # 1 руб (уменьшил для тестирования)
+        # Критерии фильтрации - ОСЛАБЛЕНЫ для работы в нисходящем рынке
+        self.min_12m_momentum = 0.0  # СНИЖЕНО с 5.0% до 0% (допускаем отрицательные значения)
+        self.min_volume_24h = 0      # УБРАНО требование к объему
+        self.min_price = 1           # 1 руб (минимальная цена)
         
         # Веса для моментума
         self.weights = {'12M': 0.40, '6M': 0.35, '1M': 0.25}
         
         # Параметры SMA
-        self.sma_fast_period = 10  # Уменьшил для тестирования
-        self.sma_slow_period = 30  # Уменьшил для тестирования
+        self.sma_fast_period = 10
+        self.sma_slow_period = 30
         
         # Бенчмарк
         self.benchmark_symbol = 'IMOEX'
@@ -247,6 +415,18 @@ class MomentumBotMOEX:
         self.signal_history: List[Dict] = []
         self.asset_ranking: List[AssetData] = []
         
+        # Статистика фильтрации
+        self.filter_stats = {
+            'total_checked': 0,
+            'failed_price': 0,
+            'failed_volume': 0,
+            'failed_historical_data': 0,
+            'failed_12m_momentum': 0,
+            'failed_sma': 0,
+            'failed_benchmark': 0,
+            'passed': 0
+        }
+        
         # Кэши
         self._cache = {
             'top_assets': {'data': None, 'timestamp': None, 'ttl': 24*3600},
@@ -254,7 +434,7 @@ class MomentumBotMOEX:
             'benchmark_data': {'data': None, 'timestamp': None, 'ttl': 3600}
         }
         
-        # Статистика
+        # Статистика ошибок
         self.errors_count = 0
         self.max_retries = 3
         
@@ -263,7 +443,7 @@ class MomentumBotMOEX:
         self.max_telegram_retries = 3
         
         logger.info("🚀 Momentum Bot для Московской биржи инициализирован")
-        logger.info(f"📊 Параметры: Топ {self.selected_count} из {self.top_assets_count}")
+        logger.info(f"📊 Параметры: Топ {self.selected_count} из всех акций Мосбиржи")
         logger.info(f"⚙️ Фильтры: 12M > {self.min_12m_momentum}%, Объем > {self.min_volume_24h:,} руб")
         logger.info(f"📈 Источник данных: MOEX API")
         
@@ -273,19 +453,20 @@ class MomentumBotMOEX:
             logger.warning("⚠️ Telegram не настроен. Сообщения не будут отправляться.")
     
     def get_top_assets(self) -> List[Dict]:
-        """Получение топ активов"""
+        """Получение всех активов Мосбиржи"""
         try:
             cache = self._cache['top_assets']
             if cache['data'] and (datetime.now() - cache['timestamp']).seconds < cache['ttl']:
                 logger.info("📊 Используем кэшированные данные активов")
                 return cache['data']
             
-            logger.info("📊 Формирование списка активов...")
+            logger.info("📊 Формирование списка всех активов Мосбиржи...")
             
             all_assets = []
+            failed_assets = []
             
-            # Добавляем популярные акции
-            for stock in self.data_fetcher.popular_stocks[:self.top_assets_count]:
+            # Добавляем все акции из расширенного списка
+            for stock in self.data_fetcher.popular_stocks:
                 symbol = stock['symbol']
                 name = stock['name']
                 
@@ -293,26 +474,30 @@ class MomentumBotMOEX:
                     price, volume, source = self.data_fetcher.get_current_price(symbol)
                     
                     if price and price >= self.min_price:
-                        # Если нет объема или он меньше минимума, используем минимальный
-                        if not volume or volume < self.min_volume_24h:
-                            volume = self.min_volume_24h * 2
-                        
+                        # Убрали проверку объема - принимаем любые значения
                         all_assets.append({
                             'symbol': symbol,
                             'name': name,
                             'sector': stock.get('sector', ''),
                             'current_price': price,
-                            'volume_24h': volume,
+                            'volume_24h': volume if volume else 0,
                             'source': source,
                             'market_type': 'stock'
                         })
                         logger.debug(f"  ✅ {symbol}: {price:.2f} руб")
+                    else:
+                        if not price:
+                            failed_assets.append(f"{symbol}: нет цены")
+                        elif price < self.min_price:
+                            failed_assets.append(f"{symbol}: цена {price:.2f} < {self.min_price}")
                     
                     # Пауза чтобы не перегружать API
-                    time.sleep(0.1)
+                    time.sleep(0.05)
                         
                 except Exception as e:
-                    logger.debug(f"  ❌ {symbol}: {e}")
+                    error_msg = f"{symbol}: ошибка получения данных - {str(e)}"
+                    failed_assets.append(error_msg)
+                    logger.debug(f"  ❌ {error_msg}")
                     continue
             
             # Добавляем индексы
@@ -336,29 +521,33 @@ class MomentumBotMOEX:
                         logger.debug(f"  ✅ {symbol}: {price:.2f} руб (индекс)")
                         
                 except Exception as e:
-                    logger.debug(f"  ❌ {symbol}: {e}")
+                    error_msg = f"{symbol}: ошибка получения данных - {str(e)}"
+                    failed_assets.append(error_msg)
+                    logger.debug(f"  ❌ {error_msg}")
             
-            # Сортируем по объему и берем топ
-            all_assets.sort(key=lambda x: x['volume_24h'], reverse=True)
-            top_assets = all_assets[:self.top_assets_count]
+            # Логируем статистику по необработанным акциям
+            if failed_assets:
+                logger.info(f"📊 Статистика необработанных активов ({len(failed_assets)}):")
+                for i in range(0, min(len(failed_assets), 20), 5):
+                    logger.info(f"  {' | '.join(failed_assets[i:i+5])}")
             
             # Кэшируем
             self._cache['top_assets'] = {
-                'data': top_assets,
+                'data': all_assets,
                 'timestamp': datetime.now(),
                 'ttl': 24*3600
             }
             
-            logger.info(f"✅ Сформирован список из {len(top_assets)} активов")
-            if top_assets:
-                logger.info("📋 Первые 5 активов:")
-                for i, asset in enumerate(top_assets[:5], 1):
-                    logger.info(f"  {i:2d}. {asset['symbol']} - {asset['name']}: {asset['current_price']:.2f} руб")
+            logger.info(f"✅ Сформирован список из {len(all_assets)} активов")
+            if all_assets:
+                logger.info("📋 Первые 10 активов:")
+                for i, asset in enumerate(all_assets[:10], 1):
+                    logger.info(f"  {i:2d}. {asset['symbol']} - {asset['name']}: {asset['current_price']:.2f} руб, объем: {asset['volume_24h']:,.0f}")
             
-            return top_assets
+            return all_assets
             
         except Exception as e:
-            logger.error(f"❌ Ошибка получения топ активов: {e}")
+            logger.error(f"❌ Ошибка получения активов: {e}")
             # Возвращаем тестовые данные для отладки
             return [
                 {'symbol': 'SBER', 'name': 'Сбербанк', 'sector': 'Финансы', 'current_price': 300.0, 'volume_24h': 10000000, 'source': 'test', 'market_type': 'stock'},
@@ -531,7 +720,8 @@ class MomentumBotMOEX:
             sector = asset_info.get('sector', '')
             market_type = asset_info.get('market_type', 'stock')
             
-            logger.info(f"  {symbol}: Цена {current_price:.2f}, 12M: {momentum_12m:+.1f}%, 6M: {absolute_momentum_6m:+.1f}%, SMA: {'🟢' if sma_signal else '🔴'}")
+            # ДЕТАЛЬНЫЙ ЛОГ со всеми значениями моментума
+            logger.info(f"  {symbol}: Цена {current_price:.2f}, 12M: {momentum_12m:+.1f}%, 6M: {momentum_6m:+.1f}%, 1M: {momentum_1m:+.1f}%, Abs6M: {absolute_momentum_6m:+.1f}%, SMA: {'🟢' if sma_signal else '🔴'}")
             
             return AssetData(
                 symbol=symbol,
@@ -563,7 +753,7 @@ class MomentumBotMOEX:
             return None
     
     def analyze_assets(self) -> List[AssetData]:
-        """Анализ активов"""
+        """Анализ активов с детальным логированием фильтрации"""
         top_assets = self.get_top_assets()
         if not top_assets:
             logger.warning("❌ Нет активов для анализа")
@@ -574,26 +764,61 @@ class MomentumBotMOEX:
         analyzed_assets = []
         benchmark_data = self.get_benchmark_data()
         
+        # Сброс статистики фильтрации
+        self.filter_stats = {
+            'total_checked': len(top_assets),
+            'failed_price': 0,
+            'failed_volume': 0,
+            'failed_historical_data': 0,
+            'failed_12m_momentum': 0,
+            'failed_sma': 0,
+            'failed_benchmark': 0,
+            'passed': 0
+        }
+        
+        # Лог причин отсева по каждой акции
+        failed_reasons = []
+        
         for i, asset_info in enumerate(top_assets):
             symbol = asset_info['symbol']
             
             try:
+                # Фильтр 0: Проверка цены (уже выполняется в get_top_assets, но для надежности)
+                if asset_info['current_price'] < self.min_price:
+                    self.filter_stats['failed_price'] += 1
+                    failed_reasons.append(f"{symbol}: цена {asset_info['current_price']:.2f} < {self.min_price}")
+                    continue
+                
+                # Фильтр 1: Расчет моментума (если нет данных, пропускаем)
                 asset_data = self.calculate_momentum_values(asset_info)
                 if asset_data is None:
+                    self.filter_stats['failed_historical_data'] += 1
+                    failed_reasons.append(f"{symbol}: нет исторических данных")
                     continue
                 
-                # Фильтр 1: Минимальный 12M моментум
+                # Фильтр 2: Минимальный 12M моментум (ОСЛАБЛЕН до 0%)
                 if asset_data.momentum_12m < self.min_12m_momentum:
-                    logger.debug(f"  ❌ {symbol}: низкий 12M моментум ({asset_data.momentum_12m:+.1f}%)")
+                    self.filter_stats['failed_12m_momentum'] += 1
+                    failed_reasons.append(f"{symbol}: 12M моментум {asset_data.momentum_12m:+.1f}% < {self.min_12m_momentum}%")
                     continue
                 
-                # Фильтр 2: Положительный SMA сигнал
+                # Фильтр 3: Положительный SMA сигнал
                 if not asset_data.sma_signal:
-                    logger.debug(f"  ❌ {symbol}: отрицательный SMA сигнал")
+                    self.filter_stats['failed_sma'] += 1
+                    failed_reasons.append(f"{symbol}: отрицательный SMA сигнал")
                     continue
                 
+                # Фильтр 4: Сравнение с бенчмарком (НОВЫЙ ФИЛЬТР)
+                if benchmark_data:
+                    if asset_data.absolute_momentum_6m <= benchmark_data['absolute_momentum_6m']:
+                        self.filter_stats['failed_benchmark'] += 1
+                        failed_reasons.append(f"{symbol}: 6M моментум {asset_data.absolute_momentum_6m:+.1f}% <= бенчмарку {benchmark_data['absolute_momentum_6m']:+.1f}%")
+                        continue
+                
+                # Актив прошел все фильтры
                 analyzed_assets.append(asset_data)
-                logger.info(f"  ✅ {symbol}: добавлен в анализ")
+                self.filter_stats['passed'] += 1
+                logger.info(f"  ✅ {symbol}: прошел все фильтры")
                 
             except Exception as e:
                 logger.error(f"Ошибка анализа {symbol}: {e}")
@@ -603,18 +828,33 @@ class MomentumBotMOEX:
         analyzed_assets.sort(key=lambda x: x.combined_momentum, reverse=True)
         selected_assets = analyzed_assets[:self.selected_count]
         
-        # Логируем результаты
-        logger.info("=" * 60)
-        logger.info(f"📊 ИТОГ анализа: {len(selected_assets)} активов отобрано")
+        # ДЕТАЛЬНОЕ ЛОГИРОВАНИЕ РЕЗУЛЬТАТОВ ФИЛЬТРАЦИИ
+        logger.info("=" * 80)
+        logger.info("📊 ДЕТАЛЬНАЯ СТАТИСТИКА ФИЛЬТРАЦИИ:")
+        logger.info(f"   Всего проверено: {self.filter_stats['total_checked']}")
+        logger.info(f"   Отсеяно по цене: {self.filter_stats['failed_price']}")
+        logger.info(f"   Отсеяно по объему: {self.filter_stats['failed_volume']}")
+        logger.info(f"   Отсеяно по историческим данным: {self.filter_stats['failed_historical_data']}")
+        logger.info(f"   Отсеяно по 12M моментуму: {self.filter_stats['failed_12m_momentum']}")
+        logger.info(f"   Отсеяно по SMA: {self.filter_stats['failed_sma']}")
+        logger.info(f"   Отсеяно по сравнению с бенчмарком: {self.filter_stats['failed_benchmark']}")
+        logger.info(f"   Прошло фильтры: {self.filter_stats['passed']}")
+        logger.info(f"   Отобрано в портфель: {len(selected_assets)}")
+        
+        # Логируем примеры причин отсева
+        if failed_reasons:
+            logger.info("📋 Примеры причин отсева (первые 10):")
+            for i, reason in enumerate(failed_reasons[:10], 1):
+                logger.info(f"   {i:2d}. {reason}")
         
         if benchmark_data:
             logger.info(f"📈 Бенчмарк {self.benchmark_symbol}: 6M моментум = {benchmark_data['absolute_momentum_6m']:+.1f}%")
         
         if selected_assets:
-            logger.info("🏆 Топ активов:")
+            logger.info("🏆 ТОП отобранных активов:")
             for i, asset in enumerate(selected_assets, 1):
                 vs_benchmark = f" vs бенчмарк: {asset.absolute_momentum_6m - benchmark_data['absolute_momentum_6m']:+.1f}%" if benchmark_data else ""
-                logger.info(f"  {i:2d}. {asset.symbol}: {asset.combined_momentum:+.2f}% (12M: {asset.momentum_12m:+.1f}%, 6M: {asset.absolute_momentum_6m:+.1f}%{vs_benchmark})")
+                logger.info(f"  {i:2d}. {asset.symbol}: комбинированный {asset.combined_momentum:+.2f}% (12M: {asset.momentum_12m:+.1f}%, 6M: {asset.absolute_momentum_6m:+.1f}%{vs_benchmark})")
         
         return selected_assets
     
@@ -728,6 +968,56 @@ class MomentumBotMOEX:
         logger.error("❌ Не удалось отправить сообщение в Telegram после всех попыток")
         return False
     
+    def format_portfolio_message(self) -> str:
+        """Форматирование сообщения с активными позициями"""
+        active_positions = {k: v for k, v in self.current_portfolio.items() if v.get('status') == 'IN'}
+        
+        if not active_positions:
+            return "📊 *АКТИВНЫЕ ПОЗИЦИИ:*\nНет активных позиций"
+        
+        message = "📊 *АКТИВНЫЕ ПОЗИЦИИ:*\n"
+        message += "═══════════════════════════\n"
+        
+        total_profit = 0
+        position_count = 0
+        
+        for symbol, data in active_positions.items():
+            try:
+                # Получаем текущую цену для расчета P&L
+                current_price_data = self.data_fetcher.get_current_price(symbol)
+                if current_price_data and current_price_data[0]:
+                    current_price = current_price_data[0]
+                    entry_price = data.get('entry_price', current_price)
+                    profit_percent = ((current_price - entry_price) / entry_price) * 100
+                    
+                    asset_name = data.get('name', symbol)
+                    entry_time = data.get('entry_time', datetime.now())
+                    if isinstance(entry_time, str):
+                        entry_time = datetime.fromisoformat(entry_time.replace('Z', '+00:00'))
+                    
+                    message += (
+                        f"• *{symbol}* ({asset_name})\n"
+                        f"  Вход: {entry_price:.2f} руб\n"
+                        f"  Текущая: {current_price:.2f} руб\n"
+                        f"  P&L: {profit_percent:+.2f}%\n"
+                        f"  Время входа: {entry_time.strftime('%d.%m.%Y %H:%M')}\n"
+                        f"  ─\n"
+                    )
+                    
+                    total_profit += profit_percent
+                    position_count += 1
+            except Exception as e:
+                logger.error(f"Ошибка форматирования позиции {symbol}: {e}")
+                continue
+        
+        if position_count > 0:
+            avg_profit = total_profit / position_count
+            message += f"═══════════════════════════\n"
+            message += f"📈 Средний P&L: {avg_profit:+.2f}%\n"
+            message += f"🔢 Всего позиций: {position_count}"
+        
+        return message
+    
     def format_signal_message(self, signal: Dict) -> str:
         """Форматирование сигнала"""
         if signal['action'] == 'BUY':
@@ -738,9 +1028,10 @@ class MomentumBotMOEX:
                 f"💰 Цена: {signal['price']:.2f} руб\n"
                 f"📊 Абсолютный моментум (12M): **{signal['absolute_momentum']:+.1f}%**\n"
                 f"📈 Абсолютный моментум (6M): **{signal.get('absolute_momentum_6m', 0):+.1f}%**\n"
-                f"📊 Относительный моментум (12M): **{signal['momentum_12m']:+.1f}%**\n"
-                f"• 6M: {signal['momentum_6m']:+.1f}%\n"
-                f"• 1M: {signal['momentum_1m']:+.1f}%\n"
+                f"📊 Относительный моментум:\n"
+                f"  • 12M: **{signal['momentum_12m']:+.1f}%**\n"
+                f"  • 6M: {signal['momentum_6m']:+.1f}%\n"
+                f"  • 1M: {signal['momentum_1m']:+.1f}%\n"
                 f"🎯 Комбинированный: {signal['combined_momentum']:+.1f}%\n"
                 f"🕐 Время: {signal['timestamp'].strftime('%H:%M:%S %d.%m.%Y')}\n"
                 f"═══════════════════════════\n"
@@ -766,11 +1057,22 @@ class MomentumBotMOEX:
         benchmark_data = self.get_benchmark_data()
         
         message = f"📊 *MOMENTUM РЕЙТИНГ МОСБИРЖИ*\n"
-        message += f"Отбор: {len(assets)} из {self.top_assets_count} активов\n"
+        message += f"Отбор: {len(assets)} из {self.filter_stats['total_checked']} активов\n"
         
         if benchmark_data:
             message += f"📈 Бенчмарк ({self.benchmark_symbol}): {benchmark_data['absolute_momentum_6m']:+.1f}% (6M)\n"
         
+        message += "═══════════════════════════\n"
+        
+        # Статистика фильтрации
+        message += "*СТАТИСТИКА ФИЛЬТРАЦИИ:*\n"
+        message += f"• Всего проверено: {self.filter_stats['total_checked']}\n"
+        message += f"• Отсеяно по историческим данным: {self.filter_stats['failed_historical_data']}\n"
+        message += f"• Отсеяно по 12M моментуму (<{self.min_12m_momentum}%): {self.filter_stats['failed_12m_momentum']}\n"
+        message += f"• Отсеяно по SMA: {self.filter_stats['failed_sma']}\n"
+        message += f"• Отсеяно по сравнению с бенчмарком: {self.filter_stats['failed_benchmark']}\n"
+        message += f"• Прошло фильтры: {self.filter_stats['passed']}\n"
+        message += f"• Отобрано в портфель: {len(assets)}\n"
         message += "═══════════════════════════\n"
         
         for i, asset in enumerate(assets, 1):
@@ -789,6 +1091,7 @@ class MomentumBotMOEX:
                 f"📊 Моментум:\n"
                 f"  • 12M: **{asset.momentum_12m:+.1f}%**\n"
                 f"  • 6M: {asset.absolute_momentum_6m:+.1f}%{benchmark_comparison}\n"
+                f"  • 1M: {asset.momentum_1m:+.1f}%\n"
                 f"  • Комбинированный: **{asset.combined_momentum:+.1f}%**\n"
                 f"📉 SMA: {'🟢 Растущий' if asset.sma_signal else '🔴 Падающий'}\n"
                 f"📡 Источник: {asset.source}\n"
@@ -797,7 +1100,7 @@ class MomentumBotMOEX:
         
         message += "═══════════════════════════\n"
         message += "*ПАРАМЕТРЫ СТРАТЕГИИ:*\n"
-        message += f"• Отбор: топ {self.selected_count} из {self.top_assets_count}\n"
+        message += f"• Отбор: топ {self.selected_count} из всех акций\n"
         message += f"• Минимальный 12M моментум: {self.min_12m_momentum}%\n"
         message += f"• Минимальный объем: {self.min_volume_24h:,} руб\n"
         message += f"• Минимальная цена: {self.min_price} руб\n"
@@ -819,7 +1122,19 @@ class MomentumBotMOEX:
             assets = self.analyze_assets()
             if not assets:
                 logger.warning("❌ Нет активов для анализа")
-                self.send_telegram_message("📊 *Анализ Мосбиржи*\nНет активов, соответствующих критериям.")
+                # Отправляем детальное сообщение о причинах отсутствия активов
+                filter_stats_msg = (
+                    f"📊 *Анализ Мосбиржи*\n"
+                    f"Нет активов, соответствующих критериям.\n"
+                    f"Статистика фильтрации:\n"
+                    f"• Всего проверено: {self.filter_stats['total_checked']}\n"
+                    f"• Отсеяно по историческим данным: {self.filter_stats['failed_historical_data']}\n"
+                    f"• Отсеяно по 12M моментуму: {self.filter_stats['failed_12m_momentum']}\n"
+                    f"• Отсеяно по SMA: {self.filter_stats['failed_sma']}\n"
+                    f"• Отсеяно по сравнению с бенчмарком: {self.filter_stats['failed_benchmark']}\n"
+                    f"• Прошло фильтры: {self.filter_stats['passed']}"
+                )
+                self.send_telegram_message(filter_stats_msg)
                 return False
             
             self.asset_ranking = assets
@@ -853,7 +1168,7 @@ class MomentumBotMOEX:
                 'signal_history': self.signal_history[-100:],
                 'last_update': datetime.now().isoformat(),
                 'errors_count': self.errors_count,
-                'version': 'moex_bot_v3'
+                'version': 'moex_bot_v4'
             }
             
             with open('logs/bot_state_moex.json', 'w') as f:
@@ -884,29 +1199,40 @@ class MomentumBotMOEX:
                 
                 active_count = len([v for v in self.current_portfolio.values() if v.get('status') == 'IN'])
                 logger.info(f"💾 Состояние загружено. Активных позиций: {active_count}")
+                
+                # Выводим список активных позиций
+                if active_count > 0:
+                    logger.info("📋 Активные позиции:")
+                    for symbol, data in self.current_portfolio.items():
+                        if data.get('status') == 'IN':
+                            logger.info(f"  • {symbol}: вход {data.get('entry_price', 0):.2f} руб, время {data.get('entry_time', 'неизвестно')}")
         except Exception as e:
             logger.error(f"Ошибка загрузки: {e}")
     
     def run(self):
         """Основной цикл"""
-        logger.info("=" * 60)
+        logger.info("=" * 80)
         logger.info("🚀 ЗАПУСК MOMENTUM BOT ДЛЯ МОСБИРЖИ")
-        logger.info("=" * 60)
+        logger.info("=" * 80)
         
         self.load_state()
         
-        # Приветственное сообщение
+        # Приветственное сообщение с активными позициями
         if self.telegram_token and self.telegram_chat_id:
             welcome_msg = (
                 "🚀 *MOMENTUM BOT ДЛЯ МОСБИРЖИ ЗАПУЩЕН*\n"
                 f"📊 Стратегия: Momentum с фильтрацией\n"
-                f"🔢 Отбор: топ {self.selected_count} из {self.top_assets_count}\n"
+                f"🔢 Отбор: топ {self.selected_count} из всех акций Мосбиржи\n"
                 f"📈 Бенчмарк: {self.benchmark_symbol}\n"
                 f"⚙️ Фильтры: 12M > {self.min_12m_momentum}%, объем > {self.min_volume_24h:,} руб\n"
                 f"📡 Источник данных: MOEX API\n"
                 f"⏰ Проверка: каждые {self.check_interval//3600} часа(ов)"
             )
             self.send_telegram_message(welcome_msg)
+            
+            # Отправляем сообщение с активными позициями
+            portfolio_message = self.format_portfolio_message()
+            self.send_telegram_message(portfolio_message)
         else:
             logger.warning("⚠️ Telegram не настроен, пропускаем приветственное сообщение")
         
