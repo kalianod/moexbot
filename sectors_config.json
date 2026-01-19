@@ -1,0 +1,1507 @@
+{
+  "sectors": {
+    "Нефть и газ": {
+      "description": "Нефтегазовый сектор, включает компании по добыче, переработке и транспортировке нефти и газа",
+      "stocks": [
+        {
+          "Ticker": "GAZP",
+          "Shortname": "ГАЗПРОМ ао",
+          "Name": "\"Газпром\" (ПАО) ао",
+          "ISIN": "RU0007661625",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "LKOH",
+          "Shortname": "ЛУКОЙЛ",
+          "Name": "НК ЛУКОЙЛ (ПАО) - ао",
+          "ISIN": "RU0009024277",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "ROSN",
+          "Shortname": "Роснефть",
+          "Name": "ПАО НК Роснефть",
+          "ISIN": "RU000A0J2Q06",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "NVTK",
+          "Shortname": "Новатэк ао",
+          "Name": "ПАО \"НОВАТЭК\" ао",
+          "ISIN": "RU000A0DKVS5",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "SNGS",
+          "Shortname": "Сургнфгз",
+          "Name": "Сургутнефтегаз ПАО акции об.",
+          "ISIN": "RU0008926258",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "SNGSP",
+          "Shortname": "Сургнфгз-п",
+          "Name": "Сургутнефтегаз ПАО ап",
+          "ISIN": "RU0009029524",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "TATN",
+          "Shortname": "Татнфт 3ао",
+          "Name": "ПАО \"Татнефть\" ао",
+          "ISIN": "RU0009033591",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "TATNP",
+          "Shortname": "Татнфт 3ап",
+          "Name": "ПАО \"Татнефть\" ап 3 вып.",
+          "ISIN": "RU0006944147",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "BANE",
+          "Shortname": "Башнефт ао",
+          "Name": "Башнефть АНК ао",
+          "ISIN": "RU0007976957",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "BANEP",
+          "Shortname": "Башнефт ап",
+          "Name": "Башнефть АНК ап",
+          "ISIN": "RU0007976965",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "TRNFP",
+          "Shortname": "Транснф ап",
+          "Name": "Транснефть ПАО акц.пр.",
+          "ISIN": "RU0009091573",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "SIBN",
+          "Shortname": "Газпрнефть",
+          "Name": "Газпром нефть ПАО ао",
+          "ISIN": "RU0009062467",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "CHGZ",
+          "Shortname": "РН-ЗапСиб",
+          "Name": "РН-Западная Сибирь ПАО ао",
+          "ISIN": "RU0009082291",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "RNFT",
+          "Shortname": "РуссНфт ао",
+          "Name": "РуссНефть НК ПАО ао",
+          "ISIN": "RU000A0JSE60",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "JNOS",
+          "Shortname": "Славн-ЯНОС",
+          "Name": "Славнефть-ЯНОС (ПАО) ао",
+          "ISIN": "RU0009100895",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "JNOSP",
+          "Shortname": "Слав-ЯНОСп",
+          "Name": "Славнефть-ЯНОС (ПАО) ап",
+          "ISIN": "RU0009101927",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "VJGZ",
+          "Shortname": "Варьеган",
+          "Name": "ННК-Варьеганнефтегаз ПАО ао",
+          "ISIN": "RU0009046460",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "VJGZP",
+          "Shortname": "Варьеган-п",
+          "Name": "ННК-Варьеганнефтегаз ПАО ап",
+          "ISIN": "RU0007964789",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "KRKN",
+          "Shortname": "СаратНПЗ",
+          "Name": "Саратовский НПЗ ПАО ао",
+          "ISIN": "RU0009100408",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "KRKNP",
+          "Shortname": "СаратНПЗ-п",
+          "Name": "Саратовский НПЗ ПАО ап",
+          "ISIN": "RU0009100416",
+          "Echelon": 3
+        }
+      ]
+    },
+    "Финансы": {
+      "description": "Банки, страховые компании, биржи и другие финансовые институты",
+      "stocks": [
+        {
+          "Ticker": "SBER",
+          "Shortname": "Сбербанк",
+          "Name": "Сбербанк России ПАО ао",
+          "ISIN": "RU0009029540",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "SBERP",
+          "Shortname": "Сбербанк-п",
+          "Name": "Сбербанк России ПАО ап",
+          "ISIN": "RU0009029557",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "VTBR",
+          "Shortname": "ВТБ ао",
+          "Name": "ао ПАО Банк ВТБ",
+          "ISIN": "RU000A0JP5V6",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "MOEX",
+          "Shortname": "МосБиржа",
+          "Name": "ПАО Московская Биржа",
+          "ISIN": "RU000A0JR4A1",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "BSPB",
+          "Shortname": "БСП ао",
+          "Name": "ПАО \"Банк \"Санкт-Петербург\" ао",
+          "ISIN": "RU0009100945",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "BSPBP",
+          "Shortname": "БСП ап",
+          "Name": "Банк Санкт-Петербург ап",
+          "ISIN": "RU000A0JP0U9",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "CBOM",
+          "Shortname": "МКБ ао",
+          "Name": "\"МКБ\" ПАО ао",
+          "ISIN": "RU000A0JUG31",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "SFIN",
+          "Shortname": "ЭсЭфАй ао",
+          "Name": "ЭсЭфАй ПАО ао",
+          "ISIN": "RU000A0JVW89",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "RENI",
+          "Shortname": "Ренессанс",
+          "Name": "Ренессанс Страхование ао",
+          "ISIN": "RU000A0ZZM04",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "RGSS",
+          "Shortname": "РГС СК ао",
+          "Name": "Росгосстрах СК ПАО ао",
+          "ISIN": "RU0008010855",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "SVCB",
+          "Shortname": "Совкомбанк",
+          "Name": "Совкомбанк ао",
+          "ISIN": "RU000A0ZZAC4",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "AVAN",
+          "Shortname": "Авангрд-ао",
+          "Name": "АКБ \"АВАНГАРД\" ПАО ао",
+          "ISIN": "RU000A0DM7B3",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "MBNK",
+          "Shortname": "МТС Банк",
+          "Name": "МТС-Банк ао",
+          "ISIN": "RU000A0JRH43",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "USBN",
+          "Shortname": "УралСиб ао",
+          "Name": "БАНК УРАЛСИБ ПАО ао",
+          "ISIN": "RU0006929536",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "KUZB",
+          "Shortname": "КузнецкийБ",
+          "Name": "Банк \"Кузнецкий\" ПАО ао",
+          "ISIN": "RU000A0JSQ66",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "PRMB",
+          "Shortname": "Приморье",
+          "Name": "АКБ \"Приморье\" ао",
+          "ISIN": "RU000A0DPNQ5",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "RUSI",
+          "Shortname": "ИКРУСС-ИНВ",
+          "Name": "РУСС-ИНВЕСТ ИК ПАО ао",
+          "ISIN": "RU000A0JQ9W5",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "ARSA",
+          "Shortname": "Арсагера",
+          "Name": "УК Арсагера ПАО-ао",
+          "ISIN": "RU000A0JP0Q7",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "RDRB",
+          "Shortname": "РДБанк ао",
+          "Name": "РоссийскийДорож Банк ПАО ао",
+          "ISIN": "RU000A0JU6Q7",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "DOMRF",
+          "Shortname": "ДОМ.РФ",
+          "Name": "ПАО ДОМ.РФ",
+          "ISIN": "RU000A0ZZFU5",
+          "Echelon": 1
+        }
+      ]
+    },
+    "Металлы и добыча": {
+      "description": "Горнодобывающие компании, металлургия, золотодобыча",
+      "stocks": [
+        {
+          "Ticker": "GMKN",
+          "Shortname": "ГМКНорНик",
+          "Name": "ГМК \"Нор.Никель\" ПАО ао",
+          "ISIN": "RU0007288411",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "NLMK",
+          "Shortname": "НЛМК ао",
+          "Name": "ПАО \"НЛМК\" ао",
+          "ISIN": "RU0009046452",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "CHMF",
+          "Shortname": "СевСт-ао",
+          "Name": "Северсталь (ПАО)ао",
+          "ISIN": "RU0009046510",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "MAGN",
+          "Shortname": "ММК",
+          "Name": "\"Магнитогорск.мет.комб\" ПАО ао",
+          "ISIN": "RU0009084396",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "PLZL",
+          "Shortname": "Полюс",
+          "Name": "Полюс ПАО ао",
+          "ISIN": "RU000A0JNAA8",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "ALRS",
+          "Shortname": "АЛРОСА ао",
+          "Name": "АЛРОСА ПАО ао",
+          "ISIN": "RU0007252813",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "RUAL",
+          "Shortname": "РУСАЛ ао",
+          "Name": "РУСАЛ ОК МКПАО ао",
+          "ISIN": "RU000A1025V3",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "PHOR",
+          "Shortname": "ФосАгро ао",
+          "Name": "ФосАгро ПАО ао",
+          "ISIN": "RU000A0JRKT8",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "SELG",
+          "Shortname": "Селигдар",
+          "Name": "ПАО \"Селигдар\"  ао",
+          "ISIN": "RU000A0JPR50",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "MTLR",
+          "Shortname": "Мечел ао",
+          "Name": "Мечел ПАО ао",
+          "ISIN": "RU000A0DKXV5",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "MTLRP",
+          "Shortname": "Мечел ап",
+          "Name": "Мечел ПАО ап",
+          "ISIN": "RU000A0JPV70",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "RASP",
+          "Shortname": "Распадская",
+          "Name": "ПАО Распадская ао",
+          "ISIN": "RU000A0B90N8",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "UGLD",
+          "Shortname": "ЮГК",
+          "Name": "ЮГК",
+          "ISIN": "RU000A0JPP37",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "LNZL",
+          "Shortname": "Лензолото",
+          "Name": "\"Лензолото\" ПАО ао",
+          "ISIN": "RU000A0JP1N2",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "LNZLP",
+          "Shortname": "Лензол. ап",
+          "Name": "\"Лензолото\" ПАО ап",
+          "ISIN": "RU000A0JP1P7",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "BLNG",
+          "Shortname": "Белон ао",
+          "Name": "Белон ОАО ао",
+          "ISIN": "RU000A0J2QG8",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "BRZL",
+          "Shortname": "БурЗолото",
+          "Name": "Бурятзолото ПАО ао",
+          "ISIN": "RU0009288658",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "IRKT",
+          "Shortname": "Яковлев-3",
+          "Name": "\"Яковлев\" ПАО ак.об.-3",
+          "ISIN": "RU0006752979",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "KOGK",
+          "Shortname": "КоршГОК ао",
+          "Name": "Коршуновский ГОК ПАО ао",
+          "ISIN": "RU0002155359",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "UKUZ",
+          "Shortname": "ЮжКузб. ао",
+          "Name": "Южный Кузбасс ПАО ао",
+          "ISIN": "RU0005294775",
+          "Echelon": 3
+        }
+      ]
+    },
+    "Электроэнергетика": {
+      "description": "Генерирующие и распределяющие электроэнергию компании",
+      "stocks": [
+        {
+          "Ticker": "FEES",
+          "Shortname": "Россети",
+          "Name": "\"ФСК - Россети\" ПАО",
+          "ISIN": "RU000A0JPNN9",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "HYDR",
+          "Shortname": "РусГидро",
+          "Name": "ПАО \"РусГидро\"",
+          "ISIN": "RU000A0JPKH7",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "IRAO",
+          "Shortname": "ИнтерРАОао",
+          "Name": "\"Интер РАО\" ПАО ао",
+          "ISIN": "RU000A0JPNM1",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "TGKA",
+          "Shortname": "ТГК-1",
+          "Name": "ао ПАО \"ТГК-1\"",
+          "ISIN": "RU000A0JNUD0",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "UPRO",
+          "Shortname": "Юнипро ао",
+          "Name": "Юнипро ПАО ао",
+          "ISIN": "RU000A0JNGA5",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "ELFV",
+          "Shortname": "ЭЛ5Энер ао",
+          "Name": "\"ЭЛ5-Энерго\" ПАО",
+          "ISIN": "RU000A0F5UN3",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "MSNG",
+          "Shortname": "#ИМЯ?",
+          "Name": "МосЭнерго акции обыкн.",
+          "ISIN": "RU0008958863",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "MRKC",
+          "Shortname": "РоссЦентр",
+          "Name": "ПАО \"Россети Центр\" ао",
+          "ISIN": "RU000A0JPPL8",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "MRKP",
+          "Shortname": "РСетиЦП ао",
+          "Name": "Россети Центр и Приволжье ао",
+          "ISIN": "RU000A0JPN96",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "MRKU",
+          "Shortname": "Россети Ур",
+          "Name": "Россети Урал (ПАО) ао",
+          "ISIN": "RU000A0JPPT1",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "MRKV",
+          "Shortname": "РсетВол ао",
+          "Name": "Россети Волга ао",
+          "ISIN": "RU000A0JPPN4",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "MRKZ",
+          "Shortname": "РСетиСЗ ао",
+          "Name": "ПАО Россети Северо-Запад ао",
+          "ISIN": "RU000A0JPPB9",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "MSRS",
+          "Shortname": "РСетиМР ао",
+          "Name": "ПАО Россети Моск.рег. ао",
+          "ISIN": "RU000A0ET7Y7",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "LSNG",
+          "Shortname": "РСетиЛЭ",
+          "Name": "Россети Ленэнерго ПАО-ао",
+          "ISIN": "RU0009034490",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "LSNGP",
+          "Shortname": "РСетиЛЭ-п",
+          "Name": "Россети Ленэнерго ПАО-ап",
+          "ISIN": "RU0009092134",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "OGKB",
+          "Shortname": "ОГК-2 ао",
+          "Name": "ОГК-2 ПАО ао",
+          "ISIN": "RU000A0JNG55",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "SLEN",
+          "Shortname": "Сахэнер ао",
+          "Name": "ПАО \"Сахалинэнерго\" ао",
+          "ISIN": "RU0009280465",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "YKEN",
+          "Shortname": "Якутскэнрг",
+          "Name": "АК \"Якутскэнерго\" (ПАО) ао",
+          "ISIN": "RU0009257075",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "YKENP",
+          "Shortname": "Якутскэн-п",
+          "Name": "АК \"Якутскэнерго\" (ПАО) ап",
+          "ISIN": "RU0007796827",
+          "Echelon": 3
+        }
+      ]
+    },
+    "Телекоммуникации": {
+      "description": "Телекоммуникационные компании, операторы связи",
+      "stocks": [
+        {
+          "Ticker": "MTSS",
+          "Shortname": "МТС-ао",
+          "Name": "Мобильные ТелеСистемы ПАО ао",
+          "ISIN": "RU0007775219",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "RTKM",
+          "Shortname": "Ростел -ао",
+          "Name": "Ростелеком (ПАО) ао.",
+          "ISIN": "RU0008943394",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "RTKMP",
+          "Shortname": "Ростел -ап",
+          "Name": "Ростелеком (ПАО) ап.",
+          "ISIN": "RU0009046700",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "TTLK",
+          "Shortname": "Таттел. ао",
+          "Name": "\"Таттелеком\" ПАО ао",
+          "ISIN": "RU000A0HM5C1",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "MGTS",
+          "Shortname": "МГТС-5ао",
+          "Name": "ПАО \"МГТС\" ао (5 в)",
+          "ISIN": "RU0009036461",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "MGTSP",
+          "Shortname": "МГТС-4ап",
+          "Name": "ПАО \"МГТС\" ап (4 в)",
+          "ISIN": "RU0009036479",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "BISVP",
+          "Shortname": "БашИнСв ап",
+          "Name": "Башинформсвязь(ПАО) ап",
+          "ISIN": "RU0009100176",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "CNTL",
+          "Shortname": "Телеграф",
+          "Name": "\"Центральный Телеграф\" ПАО ао",
+          "ISIN": "RU0007665147",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "CNTLP",
+          "Shortname": "Телеграф-п",
+          "Name": "\"Центральный Телеграф\" ПАО ап",
+          "ISIN": "RU0007665139",
+          "Echelon": 3
+        }
+      ]
+    },
+    "Потребительские товары": {
+      "description": "Розничная торговля, продукты питания, напитки",
+      "stocks": [
+        {
+          "Ticker": "MGNT",
+          "Shortname": "Магнит ао",
+          "Name": "\"Магнит\" ПАО ао",
+          "ISIN": "RU000A0JKQU8",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "X5",
+          "Shortname": "КЦ ИКС 5",
+          "Name": "Корпоративный центр ИКС 5",
+          "ISIN": "RU000A108X38",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "FIXR",
+          "Shortname": "Фикс Прайс",
+          "Name": "ПАО Фикс Прайс",
+          "ISIN": "RU000A10B5G8",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "LENT",
+          "Shortname": "Лента ао",
+          "Name": "Лента МКПАО ао",
+          "ISIN": "RU000A102S15",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "MVID",
+          "Shortname": "М.видео",
+          "Name": "\"М.видео\" ПАО ао",
+          "ISIN": "RU000A0JPGA0",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "SVET",
+          "Shortname": "Светофор",
+          "Name": "Светофор Групп ао",
+          "ISIN": "RU000A100592",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "SVETP",
+          "Shortname": "Светофор п",
+          "Name": "Светофор Групп ап",
+          "ISIN": "RU000A1005A9",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "APTK",
+          "Shortname": "Аптеки36и6",
+          "Name": "ПАО \"Аптечная сеть 36,6\" ао",
+          "ISIN": "RU0008081765",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "ABRD",
+          "Shortname": "АбрауДюрсо",
+          "Name": "Абрау-Дюрсо ПАО ао",
+          "ISIN": "RU000A0JS5T7",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "BELU",
+          "Shortname": "НоваБев ао",
+          "Name": "НоваБев Групп ПАО ао",
+          "ISIN": "RU000A0HL5M1",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "KLVZ",
+          "Shortname": "Кристалл",
+          "Name": "Алкогольная Группа Кристалл",
+          "ISIN": "RU000A107KX0",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "KROT",
+          "Shortname": "КрасОкт-ао",
+          "Name": "\"КрасныйОктябрь\" ПАО - ао",
+          "ISIN": "RU0008913850",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "KROTP",
+          "Shortname": "КрасОкт-1п",
+          "Name": "КрасныйОктябрь-1п",
+          "ISIN": "RU0008913868",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "RAGR",
+          "Shortname": "Русагро",
+          "Name": "Группа Русагро",
+          "ISIN": "RU000A0JQUZ6",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "ROST",
+          "Shortname": "РОСИНТЕРао",
+          "Name": "РОСИНТЕР РЕСТОРАНТС (ПАО)",
+          "ISIN": "RU000A0JP922",
+          "Echelon": 3
+        }
+      ]
+    },
+    "Химия и нефтехимия": {
+      "description": "Химические производства, удобрения, нефтехимия",
+      "stocks": [
+        {
+          "Ticker": "AKRN",
+          "Shortname": "Акрон",
+          "Name": "Акрон ПАО ао",
+          "ISIN": "RU0009028674",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "KAZT",
+          "Shortname": "Куйбазот",
+          "Name": "Куйбышевазот ПАО ао",
+          "ISIN": "RU000A0B9BV2",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "KAZTP",
+          "Shortname": "Куйбазот-п",
+          "Name": "Куйбышевазот ПАО ап",
+          "ISIN": "RU000A0B9BW0",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "KZOS",
+          "Shortname": "ОргСинт ао",
+          "Name": "ПАО \"Органический синтез\" ао",
+          "ISIN": "RU0009089825",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "KZOSP",
+          "Shortname": "ОргСинт ап",
+          "Name": "ПАО \"Органический синтез\" ап",
+          "ISIN": "RU0006753456",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "NKHP",
+          "Shortname": "НКХП ао",
+          "Name": "НКХП ПАО ао",
+          "ISIN": "RU000A0BLWD7",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "NKNC",
+          "Shortname": "НКНХ ао",
+          "Name": "\"Нижнекамскнефтехим\" ПАО ао",
+          "ISIN": "RU0009100507",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "NKNCP",
+          "Shortname": "НКНХ ап",
+          "Name": "\"Нижнекамскнефтехим\" ПАО ап",
+          "ISIN": "RU0006765096",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "HIMCP",
+          "Shortname": "Химпром ап",
+          "Name": "Химпром ПАО ап",
+          "ISIN": "RU0009099006",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "VLHZ",
+          "Shortname": "ВХЗ-ао",
+          "Name": "Владимирский химич.з-д(ПАО) ао",
+          "ISIN": "RU0007984761",
+          "Echelon": 3
+        }
+      ]
+    },
+    "Информационные технологии": {
+      "description": "ИТ-компании, разработчики ПО, интернет-сервисы",
+      "stocks": [
+        {
+          "Ticker": "YNDX",
+          "Shortname": "ЯНДЕКС",
+          "Name": "МКПАО ЯНДЕКС",
+          "ISIN": "RU000A107T19",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "OZON",
+          "Shortname": "Озон",
+          "Name": "МКПАО Озон",
+          "ISIN": "RU000A10CW95",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "VKCO",
+          "Shortname": "МКПАО \"ВК\"",
+          "Name": "Международная компания ПАО ВК",
+          "ISIN": "RU000A106YF0",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "TCSG",
+          "Shortname": "ТКС",
+          "Name": "ТКС Холдинг ао",
+          "ISIN": "RU000A0JPLH4",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "CNRU",
+          "Shortname": "Циан",
+          "Name": "МКПАО \"Циан\"",
+          "ISIN": "RU000A10ANA1",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "HEAD",
+          "Shortname": "Хэдхантер",
+          "Name": "МКПАО Хэдхантер",
+          "ISIN": "RU000A107662",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "POSI",
+          "Shortname": "iПозитив",
+          "Name": "Группа Позитив ао",
+          "ISIN": "RU000A103X66",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "SOFL",
+          "Shortname": "iСофтлайн",
+          "Name": "Софтлайн ао",
+          "ISIN": "RU000A0ZZBC2",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "DIAS",
+          "Shortname": "iДиасофт",
+          "Name": "Диасофт ао",
+          "ISIN": "RU000A107ER5",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "DATA",
+          "Shortname": "iАренадата",
+          "Name": "Группа Аренадата",
+          "ISIN": "RU000A108ZR8",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "T",
+          "Shortname": "Т-Техно ао",
+          "Name": "Т-Технологии МКПАО ао",
+          "ISIN": "RU000A107UL4",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "RBCM",
+          "Shortname": "ГК РБК ао",
+          "Name": "ГК РБК ПАО ао",
+          "ISIN": "RU000A0JR6A6",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "NSVZ",
+          "Shortname": "iНаукаСвяз",
+          "Name": "Наука-Связь ПАО ао",
+          "ISIN": "RU000A0JQLB6",
+          "Echelon": 3
+        }
+      ]
+    },
+    "Транспорт": {
+      "description": "Авиакомпании, морские перевозки, логистика",
+      "stocks": [
+        {
+          "Ticker": "AFLT",
+          "Shortname": "Аэрофлот",
+          "Name": "Аэрофлот-росс.авиалин(ПАО)ао",
+          "ISIN": "RU0009062285",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "NMTP",
+          "Shortname": "НМТП ао",
+          "Name": "НМТП (ПАО) ао",
+          "ISIN": "RU0009084446",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "FLOT",
+          "Shortname": "Совкомфлот",
+          "Name": "Совкомфлот ао",
+          "ISIN": "RU000A0JXNU8",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "FESH",
+          "Shortname": "ДВМП ао",
+          "Name": "ДВ морское пароходство ПАО ао",
+          "ISIN": "RU0008992318",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "UTAR",
+          "Shortname": "ЮТэйр ао",
+          "Name": "Авиакомпания \"ЮТэйр\" (ПАО) ао",
+          "ISIN": "RU0007661385",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "KMAZ",
+          "Shortname": "КАМАЗ",
+          "Name": "КАМАЗ ПАО",
+          "ISIN": "RU0008959580",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "GAZA",
+          "Shortname": "ГАЗ ао",
+          "Name": "ГАЗ ПАО ао",
+          "ISIN": "RU0009034268",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "GAZAP",
+          "Shortname": "ГАЗ ап",
+          "Name": "ГАЗ ПАО ап",
+          "ISIN": "RU000A0ZYHF5",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "SVAV",
+          "Shortname": "СОЛЛЕРС",
+          "Name": "ПАО \"СОЛЛЕРС\"",
+          "ISIN": "RU0006914488",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "TRMK",
+          "Shortname": "ТМК ао",
+          "Name": "ПАО ТМК",
+          "ISIN": "RU000A0B6NK6",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "PAZA",
+          "Shortname": "ПавлАвт ао",
+          "Name": "Павловский автобус ПАО ао",
+          "ISIN": "RU0009083240",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "NFAZ",
+          "Shortname": "НЕФАЗ",
+          "Name": "НЕФАЗ ПАО ао",
+          "ISIN": "RU0009115604",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "ZILL",
+          "Shortname": "ЗИЛ ао",
+          "Name": "Завод им. И.А.Лихачева ПАО ао",
+          "ISIN": "RU0009086193",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "TUZA",
+          "Shortname": "ТЗА ао",
+          "Name": "Туймаз. завод автобетоновозов",
+          "ISIN": "RU000A0HL7A2",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "VSYD",
+          "Shortname": "ВыбСудЗ ао",
+          "Name": "Выборгский Суд.Завод ПАО ао",
+          "ISIN": "RU0006334372",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "VSYDP",
+          "Shortname": "ВыбСудЗ ап",
+          "Name": "Выборгский Суд.Завод ПАО ап",
+          "ISIN": "RU0006334380",
+          "Echelon": 3
+        }
+      ]
+    },
+    "Недвижимость и строительство": {
+      "description": "Девелоперы, строительные компании, управляющие недвижимостью",
+      "stocks": [
+        {
+          "Ticker": "PIKK",
+          "Shortname": "ПИК ао",
+          "Name": "ПИК СЗ (ПАО) ао",
+          "ISIN": "RU000A0JP7J7",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "LSRG",
+          "Shortname": "ЛСР ао",
+          "Name": "Группа ЛСР ПАО ао",
+          "ISIN": "RU000A0JPFP0",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "ETLN",
+          "Shortname": "ЭталонГруп",
+          "Name": "МКПАО Эталон Груп",
+          "ISIN": "RU000A10C1L6",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "SMLT",
+          "Shortname": "Самолет ао",
+          "Name": "ГК Самолет ао",
+          "ISIN": "RU000A0ZZG02",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "MSTT",
+          "Shortname": "Мостотрест",
+          "Name": "ПАО \"МОСТОТРЕСТ\" ао",
+          "ISIN": "RU0009177331",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "SGZH",
+          "Shortname": "Сегежа",
+          "Name": "Сегежа ао",
+          "ISIN": "RU000A102XG9",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "CHKZ",
+          "Shortname": "ЧКПЗ ао",
+          "Name": "\"ЧКПЗ\" ПАО ао",
+          "ISIN": "RU000A0JNST0",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "KFBA",
+          "Shortname": "ИНГРАД ао",
+          "Name": "ИНГРАД ПАО ао",
+          "ISIN": "RU000A0DJ9B4",
+          "Echelon": 3
+        }
+      ]
+    },
+    "Фармацевтика и медицина": {
+      "description": "Фармацевтические компании, производители лекарств, медицинские услуги",
+      "stocks": [
+        {
+          "Ticker": "AQUA",
+          "Shortname": "ИНАРКТИКА",
+          "Name": "ПАО ИНАРКТИКА",
+          "ISIN": "RU000A0JQTS3",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "OZPH",
+          "Shortname": "iОзонФарм",
+          "Name": "Озон Фармацевтика",
+          "ISIN": "RU000A109B25",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "GEMC",
+          "Shortname": "МКПАО ЮМГ",
+          "Name": "Юнайтед Медикал Груп ПАО",
+          "ISIN": "RU000A107JE2",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "MDMG",
+          "Shortname": "MDMG-ао",
+          "Name": "МКПАО «МД Медикал Груп»",
+          "ISIN": "RU000A108KL3",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "LIFE",
+          "Shortname": "Фармсинтез",
+          "Name": "Фармсинтез ПАО ао",
+          "ISIN": "RU000A0JR514",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "GECO",
+          "Shortname": "iГЕНЕТИКО",
+          "Name": "ЦГРМ ГЕНЕТИКО ао",
+          "ISIN": "RU000A105BN4",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "ABIO",
+          "Shortname": "iАРТГЕН ао",
+          "Name": "ПАО \"Артген\"",
+          "ISIN": "RU000A0JNAB6",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "PRMD",
+          "Shortname": "iПРОМОМЕД",
+          "Name": "ПРОМОМЕД",
+          "ISIN": "RU000A108JF7",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "LVHK",
+          "Shortname": "Левенгук",
+          "Name": "Левенгук ПАО ао",
+          "ISIN": "RU000A0JT7Y2",
+          "Echelon": 3
+        }
+      ]
+    },
+    "Прочие": {
+      "description": "Компании, не вошедшие в основные категории",
+      "stocks": [
+        {
+          "Ticker": "AFKS",
+          "Shortname": "Система ао",
+          "Name": "АФК \"Система\" ПАО ао",
+          "ISIN": "RU000A0DQZE3",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "EUTR",
+          "Shortname": "ЕвроТранс",
+          "Name": "ЕвроТранс ао",
+          "ISIN": "RU000A1002V2",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "LEAS",
+          "Shortname": "Европлан",
+          "Name": "ПАО «ЛК «Европлан»",
+          "ISIN": "RU000A0ZZFS9",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "BAZA",
+          "Shortname": "iБАЗИС",
+          "Name": "ГК БАЗИС",
+          "ISIN": "RU000A10CTQ0",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "HNFG",
+          "Shortname": "ХЭНДЕРСОН",
+          "Name": "ХЭНДЕРСОН ао",
+          "ISIN": "RU000A106XF2",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "WUSH",
+          "Shortname": "iВУШХолднг",
+          "Name": "ВУШ Холдинг ао",
+          "ISIN": "RU000A105EX7",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "IVAT",
+          "Shortname": "iИВА",
+          "Name": "ПАО ИВА ао",
+          "ISIN": "RU000A108GD8",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "AMEZ",
+          "Shortname": "АшинскийМЗ",
+          "Name": "Ашинский метзавод ПАО ао",
+          "ISIN": "RU000A0B88G6",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "APRI",
+          "Shortname": "АПРИ",
+          "Name": "АПРИ",
+          "ISIN": "RU000A108LJ5",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "ASSB",
+          "Shortname": "АстрЭнСб",
+          "Name": "\"Астраханская ЭСК\" ПАО",
+          "ISIN": "RU000A0D8MM8",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "ASTR",
+          "Shortname": "iАстра ао",
+          "Name": "Группа Астра ао",
+          "ISIN": "RU000A106T36",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "CARM",
+          "Shortname": "СТГ",
+          "Name": "СТГ ао",
+          "ISIN": "RU000A105NV2",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "DELI",
+          "Shortname": "iКаршеринг",
+          "Name": "Каршеринг Руссия ао",
+          "ISIN": "RU000A107J11",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "DIOD",
+          "Shortname": "ЗаводДИОД",
+          "Name": "Завод ДИОД ПАО ао",
+          "ISIN": "RU000A0JQWC1",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "DVEC",
+          "Shortname": "ДЭК ао",
+          "Name": "\"ДЭК\" ПАО ао",
+          "ISIN": "RU000A0JP2W1",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "DZRD",
+          "Shortname": "ДонскЗР",
+          "Name": "Донской завод радиодеталей ао",
+          "ISIN": "RU000A0JQW11",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "DZRDP",
+          "Shortname": "ДонскЗР п",
+          "Name": "Донской завод радиодеталей ап",
+          "ISIN": "RU000A0JQW29",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "EELT",
+          "Shortname": "ЕвроЭлтех",
+          "Name": "\"ЕвропЭлектротехника\" ПАО ао",
+          "ISIN": "RU000A0JWW54",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "ELMT",
+          "Shortname": "iЭлемент",
+          "Name": "Элемент",
+          "ISIN": "RU000A102093",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "GEMA",
+          "Shortname": "iММЦБ ао",
+          "Name": "ПАО ММЦБ ао",
+          "ISIN": "RU000A100GC7",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "GLRX",
+          "Shortname": "ГЛОРАКС",
+          "Name": "ПАО ГЛОРАКС",
+          "ISIN": "RU000A10CRQ4",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "GTRK",
+          "Shortname": "ГТМ ао",
+          "Name": "ПАО \"ГТМ\" ао",
+          "ISIN": "RU000A0ZYD22",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "IGST",
+          "Shortname": "Ижсталь2ао",
+          "Name": "Ижсталь ПАО ао 2в.",
+          "ISIN": "RU0002155292",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "IGSTP",
+          "Shortname": "Ижсталь ап",
+          "Name": "Ижсталь ПАО ап",
+          "ISIN": "RU0002155300",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "LMBZ",
+          "Shortname": "Ламбумиз",
+          "Name": "Ламбумиз",
+          "ISIN": "RU000A108ZX6",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "MGKL",
+          "Shortname": "МГКЛ",
+          "Name": "МГКЛ ао",
+          "ISIN": "RU000A0JVJQ8",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "MGNZ",
+          "Shortname": "СМЗ-ао",
+          "Name": "Соликамский магн.завод(ОАО)ао",
+          "ISIN": "RU0009100911",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "NAUK",
+          "Shortname": "iНПОНаука",
+          "Name": "НПО Наука ао",
+          "ISIN": "RU000A0JRPX9",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "NKSH",
+          "Shortname": "Нижкамшина",
+          "Name": "Нижнекамскшина ПАО ао",
+          "ISIN": "RU0009100515",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "OMZZP",
+          "Shortname": "ОМЗ-ап",
+          "Name": "ап\"Объединён.  маш. заводы\"",
+          "ISIN": "RU0009090559",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "PRFN",
+          "Shortname": "ТЕПЛАНТ ао",
+          "Name": "ТЕПЛАНТ восток (ПАО) ао",
+          "ISIN": "RU000A0JNXF9",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "RKKE",
+          "Shortname": "ЭнергияРКК",
+          "Name": "РКК Энергия им.С.П.Королева ао",
+          "ISIN": "RU0009095939",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "ROLO",
+          "Shortname": "Русолово",
+          "Name": "\"Русолово\" ПАО ао",
+          "ISIN": "RU000A0JU1B0",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "RTGZ",
+          "Shortname": "ГР Ростов",
+          "Name": "Газпром газорасп Р-н-Д ПАО ао",
+          "ISIN": "RU000A0JPG04",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "SPBE",
+          "Shortname": "СПБ Биржа",
+          "Name": "СПБ Биржа ао",
+          "ISIN": "RU000A0JQ9P9",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "UNAC",
+          "Shortname": "iАвиастКао",
+          "Name": "Об.авиастр.корп. ПАО ао",
+          "ISIN": "RU000A0JPLZ7",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "UNKL",
+          "Shortname": "ЮУНК ао",
+          "Name": "Южно-Уральский никел. комб. ао",
+          "ISIN": "RU0004887991",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "URKZ",
+          "Shortname": "УрКузница",
+          "Name": "ПАО \"Уральская кузница\" ао",
+          "ISIN": "RU000A0JPFY2",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "UWGN",
+          "Shortname": "ОВК ао",
+          "Name": "ПАО НПК ОВК ао",
+          "ISIN": "RU000A0JVBT9",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "VSEH",
+          "Shortname": "ВИ.ру",
+          "Name": "ВИ.ру",
+          "ISIN": "RU000A108K09",
+          "Echelon": 1
+        },
+        {
+          "Ticker": "VSMO",
+          "Shortname": "ВСМПО-АВСМ",
+          "Name": "Корп. ВСМПО-АВИСМА (ПАО) ао",
+          "ISIN": "RU0009100291",
+          "Echelon": 2
+        },
+        {
+          "Ticker": "WTCM",
+          "Shortname": "ЦМТ ао",
+          "Name": "\"Центр междун. торговли\"ПАО ао",
+          "ISIN": "RU0008137070",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "WTCMP",
+          "Shortname": "ЦМТ ап",
+          "Name": "\"Центр междун. торговли\"ПАО ап",
+          "ISIN": "RU0008137088",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "YAKG",
+          "Shortname": "ЯТЭК ао",
+          "Name": "Якутская топл.-энерг. комп. ао",
+          "ISIN": "RU0007796819",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "ZAYM",
+          "Shortname": "Займер ао",
+          "Name": "Займер ао",
+          "ISIN": "RU000A107RM8",
+          "Echelon": 3
+        },
+        {
+          "Ticker": "ZVEZ",
+          "Shortname": "ЗВЕЗДА ао",
+          "Name": "ЗВЕЗДА ПАО ао",
+          "ISIN": "RU0009091300",
+          "Echelon": 3
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "created_date": "2025-01-19",
+    "total_stocks": 250,
+    "total_sectors": 11,
+    "data_source": "MOEX ISS API",
+    "note": "Распределение основано на отраслевой классификации Московской биржи и финансовой отчетности компаний. Echelon: 1 - голубые фишки, 2 - второй эшелон, 3 - третий эшелон"
+  }
+}
