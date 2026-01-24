@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Tuple, Any, Set
 from dataclasses import dataclass, field
 from functools import lru_cache
 from collections import defaultdict
-import traceback  # Добавлено для детальной отладки
+import traceback
 
 warnings.filterwarnings('ignore')
 
@@ -75,9 +75,9 @@ class AssetData:
     sma_fast: float
     sma_slow: float
     sma_signal: bool
-    atr: float = 0.0  # Добавлено: ATR для управления рисками
-    stop_loss: float = 0.0  # Добавлено: уровень стоп-лосса
-    atr_period: int = 14  # Добавлено: период для расчета ATR
+    atr: float = 0.0
+    stop_loss: float = 0.0
+    atr_period: int = 14
     timestamp: datetime = field(default_factory=datetime.now)
     market_type: str = 'stock'
     sector: str = ''
@@ -101,7 +101,7 @@ class SectorPerformance:
     avg_momentum_12m: float = 0.0
     vs_benchmark: float = 0.0
     performance_score: float = 0.0
-    avg_atr_percent: float = 0.0  # Добавлено: средний ATR в %
+    avg_atr_percent: float = 0.0
 
 
 class MOEXDataFetcher:
@@ -111,19 +111,15 @@ class MOEXDataFetcher:
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': 'MomentumBotMOEX/1.0'})
         
-        # Кэш для списка акций на 180 дней
         self.stocks_cache_file = 'logs/moex_stocks_cache.json'
         self.stocks_cache_ttl = 180 * 24 * 3600
         
-        # Бенчмарк - индекс полной доходности MCFTR
         self.benchmark_symbol = 'MCFTR'
         
-        # Загрузка конфигурации секторов
         self.sectors_config = self.load_sectors_config()
         
         logger.info(f"✅ MOEXDataFetcher инициализирован. apimoex доступен: {HAS_APIMOEX}")
         
-        # Проверяем подключение к MOEX API
         self.test_moex_connection()
     
     def load_sectors_config(self) -> Dict:
@@ -136,7 +132,6 @@ class MOEXDataFetcher:
                 logger.info(f"✅ Конфигурация секторов загружена из {config_file}")
                 logger.info(f"📊 Загружено секторов: {len(config.get('sectors', {}))}")
                 
-                # Логируем количество акций в каждом секторе
                 for sector_name, sector_data in config.get('sectors', {}).items():
                     stocks_count = len(sector_data.get('stocks', []))
                     logger.info(f"  • {sector_name}: {stocks_count} акций")
@@ -152,7 +147,6 @@ class MOEXDataFetcher:
     def get_assets_from_config(self) -> List[Dict]:
         """
         Получение списка акций ТОЛЬКО из конфигурационного файла
-        Это ЗАМЕНА старого метода get_200_popular_stocks()
         """
         logger.info("📊 Получение списка акций из конфигурационного файла...")
         
@@ -176,18 +170,15 @@ class MOEXDataFetcher:
         
         logger.info(f"✅ Из конфига загружено {total_stocks} акций в {len(self.sectors_config.get('sectors', {}))} секторах")
         
-        # Логируем первые 10 акций для проверки
         for i, asset in enumerate(assets[:10]):
             logger.debug(f"  {i+1}. {asset['symbol']} - {asset['name']} ({asset['sector']})")
         
         return assets
     
-    # СТАРЫЙ МЕТОД СОХРАНЕН ДЛЯ СОВМЕСТИМОСТИ
     def get_200_popular_stocks(self) -> List[Dict]:
         """
         Получение списка 200 популярных российских акций
         Кэшируется на 180 дней
-        Сохранен для обратной совместимости, но НЕ ИСПОЛЬЗУЕТСЯ в новой логике
         """
         logger.warning("⚠️ get_200_popular_stocks() вызывается, но используется конфиг")
         return self.get_assets_from_config()
@@ -210,7 +201,6 @@ class MOEXDataFetcher:
     def get_current_price(self, symbol: str) -> Tuple[Optional[float], Optional[float], str]:
         """
         Получение текущей цены БЕЗ ЗАПРОСА ОБЪЕМА
-        ИСПРАВЛЕНО: преобразование строки в float
         """
         source = 'unknown'
         
@@ -236,7 +226,6 @@ class MOEXDataFetcher:
                             if price_idx != -1 and len(row) > price_idx:
                                 price = row[price_idx]
                                 
-                                # ИСПРАВЛЕНО: преобразование строки в float
                                 if price is not None:
                                     try:
                                         price_float = float(price)
@@ -270,7 +259,6 @@ class MOEXDataFetcher:
             
             logger.debug(f"Запрос исторических данных для {symbol} с {start_date_str} по {end_date_str}")
             
-            # Используем apimoex если доступен
             if HAS_APIMOEX:
                 try:
                     for board in ['TQBR', 'TQTD', 'SNDX']:
@@ -290,7 +278,6 @@ class MOEXDataFetcher:
                                 df['timestamp'] = pd.to_datetime(df['timestamp'])
                                 df = df.sort_values('timestamp')
                                 
-                                # ИСПРАВЛЕНО: убеждаемся, что цены в float
                                 for col in ['open', 'close', 'high', 'low']:
                                     if col in df.columns:
                                         df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -303,7 +290,6 @@ class MOEXDataFetcher:
                 except Exception as e:
                     logger.debug(f"apimoex общая ошибка для {symbol}: {e}")
             
-            # Резервный метод через прямое API
             logger.debug(f"Используем резервный API для исторических данных {symbol}")
             
             for market, board in [('shares', 'TQBR'), ('index', 'SNDX')]:
@@ -327,7 +313,6 @@ class MOEXDataFetcher:
                             df['timestamp'] = pd.to_datetime(df['timestamp'])
                             df = df.sort_values('timestamp')
                             
-                            # ИСПРАВЛЕНО: преобразование в float
                             for col in ['open', 'close', 'high', 'low']:
                                 df[col] = pd.to_numeric(df[col], errors='coerce')
                             
@@ -347,29 +332,23 @@ class MOEXDataFetcher:
     def calculate_atr(self, df: pd.DataFrame, period: int = 14) -> float:
         """
         Расчет Average True Range (ATR) для управления рисками
-        Добавлено: метод для расчета волатильности
         """
         try:
             if df is None or len(df) < period:
                 logger.warning(f"⚠️ Недостаточно данных для расчета ATR (нужно {period}, есть {len(df) if df else 0})")
                 return 0.0
             
-            # Копируем DataFrame чтобы не менять оригинал
             df_calc = df.copy()
             
-            # Рассчитываем True Range
             df_calc['high_low'] = df_calc['high'] - df_calc['low']
             df_calc['high_close_prev'] = abs(df_calc['high'] - df_calc['close'].shift(1))
             df_calc['low_close_prev'] = abs(df_calc['low'] - df_calc['close'].shift(1))
             
             df_calc['true_range'] = df_calc[['high_low', 'high_close_prev', 'low_close_prev']].max(axis=1)
             
-            # Расчет ATR (сглаженное скользящее среднее)
             atr = df_calc['true_range'].rolling(window=period).mean().iloc[-1]
             
-            # Если ATR не рассчитался, используем простую волатильность
             if pd.isna(atr) or atr == 0:
-                # Альтернативный расчет: стандартное отклонение цен закрытия
                 returns = df_calc['close'].pct_change().dropna()
                 if len(returns) > 0:
                     volatility = returns.std() * df_calc['close'].iloc[-1]
@@ -406,7 +385,6 @@ class MomentumBotMOEX:
         self.telegram_token = os.getenv('TELEGRAM_TOKEN')
         self.telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID')
         
-        # Проверяем наличие токена и chat_id
         if not self.telegram_token:
             logger.error("❌ TELEGRAM_TOKEN не найден в переменных окружения")
             logger.error("❌ Добавьте TELEGRAM_TOKEN=ваш_токен_бота в файл .env")
@@ -415,49 +393,37 @@ class MomentumBotMOEX:
             logger.error("❌ TELEGRAM_CHAT_ID не найден в переменных окружения")
             logger.error("❌ Добавьте TELEGRAM_CHAT_ID=ваш_chat_id в файл .env")
         
-        # Инициализация фетчера данных
         self.data_fetcher = MOEXDataFetcher()
         
-        # Параметры стратегии
-        self.top_assets_count = 200  # Оставляем для совместимости
+        self.top_assets_count = 200
         self.selected_count = 10
         
-        # Проверка каждые 4 часа
         self.check_interval = 4 * 3600
         
-        # Время последнего оповещения
         self.last_notification_time = None
         self.notification_interval = 24 * 3600
         
-        # Критерии фильтрации
         self.min_12m_momentum = 0.0
         
-        # Веса для моментума
         self.weights = {'12M': 0.40, '6M': 0.35, '1M': 0.25}
         
-        # Параметры SMA
         self.sma_fast_period = 10
         self.sma_slow_period = 30
         
-        # Бенчмарк
         self.benchmark_symbol = 'MCFTR'
         self.benchmark_name = 'Индекс Мосбиржи полной доходности'
         
-        # Параметры ATR и стоп-лосса
-        self.atr_period = 14  # Период для расчета ATR
-        self.atr_multiplier = 2.0  # Множитель для стоп-лосса (entry_price - 2 * ATR)
-        self.min_stop_loss_percent = 5.0  # Минимальный стоп-лосс в %
-        self.max_stop_loss_percent = 20.0  # Максимальный стоп-лосс в %
+        self.atr_period = 14
+        self.atr_multiplier = 2.0
+        self.min_stop_loss_percent = 5.0
+        self.max_stop_loss_percent = 20.0
         
-        # Текущий портфель
         self.current_portfolio: Dict[str, Dict] = {}
         self.signal_history: List[Dict] = []
         self.asset_ranking: List[AssetData] = []
         
-        # Секторная производительность
         self.sector_performance: Dict[str, SectorPerformance] = {}
         
-        # Кэши
         self._cache = {
             'top_assets': {'data': None, 'timestamp': None, 'ttl': 24*3600},
             'historical_data': {},
@@ -465,15 +431,12 @@ class MomentumBotMOEX:
             'stocks_list': {'data': None, 'timestamp': None, 'ttl': 180*24*3600}
         }
         
-        # Статистика
         self.errors_count = 0
         self.max_retries = 3
         
-        # Telegram
         self.telegram_retry_delay = 2
         self.max_telegram_retries = 3
         
-        # Режим работы
         self.use_sector_selection = True
         self.test_mode = False
         
@@ -505,18 +468,15 @@ class MomentumBotMOEX:
     def get_stocks_list(self) -> List[Dict]:
         """
         Получение списка акций ТОЛЬКО из конфигурационного файла
-        ИЗМЕНЕНО: используем только акции из sectors_config.json
         """
         cache = self._cache['stocks_list']
         
-        # Проверяем кэш
         if cache['data'] and cache['timestamp']:
             cache_age = (datetime.now() - cache['timestamp']).total_seconds()
             if cache_age < cache['ttl']:
                 logger.info(f"✅ Используем кэшированный список акций из конфига (возраст: {cache_age/86400:.1f} дней)")
                 return cache['data']
         
-        # Получаем новый список ИЗ КОНФИГА
         logger.info("📊 Получение списка акций из конфигурационного файла...")
         stocks_list = self.data_fetcher.get_assets_from_config()
         
@@ -525,7 +485,6 @@ class MomentumBotMOEX:
             logger.error("❌ Проверьте файл sectors_config.json")
             raise Exception("Не удалось получить список акций из конфигурационного файла")
         
-        # Сохраняем в кэш
         self._cache['stocks_list'] = {
             'data': stocks_list,
             'timestamp': datetime.now(),
@@ -534,7 +493,6 @@ class MomentumBotMOEX:
         
         logger.info(f"✅ Получено {len(stocks_list)} акций из конфига, сохранено в кэш на 180 дней")
         
-        # Логируем статистику по секторам
         sector_stats = {}
         for stock in stocks_list:
             sector = stock.get('sector', 'Другое')
@@ -550,10 +508,8 @@ class MomentumBotMOEX:
     def get_top_assets(self) -> List[Dict]:
         """
         Получение топ активов для анализа
-        ИЗМЕНЕНО: используем только акции из конфига
         """
         try:
-            # Проверяем кэш топ активов (24 часа)
             cache = self._cache['top_assets']
             if cache['data'] and cache['timestamp']:
                 cache_age = (datetime.now() - cache['timestamp']).total_seconds()
@@ -563,7 +519,6 @@ class MomentumBotMOEX:
             
             logger.info("📊 Формирование списка активов для анализа из конфига...")
             
-            # Получаем список акций ИЗ КОНФИГА
             all_stocks = self.get_stocks_list()
             
             if not all_stocks:
@@ -573,16 +528,13 @@ class MomentumBotMOEX:
             all_assets = []
             filtered_assets = []
             
-            # Обрабатываем акции
             for i, stock in enumerate(all_stocks, 1):
                 symbol = stock['symbol']
                 name = stock['name']
                 
                 try:
-                    # Получаем текущую цену
                     price, _, source = self.data_fetcher.get_current_price(symbol)
                     
-                    # Проверяем получены ли данные
                     if price is None or price <= 0:
                         filtered_assets.append(f"⚠️ {symbol}: не удалось получить цену")
                         logger.warning(f"⚠️ Не удалось получить цену для {symbol}")
@@ -601,7 +553,6 @@ class MomentumBotMOEX:
                     
                     logger.debug(f"  ✅ {symbol}: {price:.2f} руб ({stock.get('sector', 'Другое')})")
                     
-                    # Пауза чтобы не перегружать API
                     if i % 20 == 0:
                         time.sleep(0.5)
                             
@@ -610,7 +561,6 @@ class MomentumBotMOEX:
                     logger.error(f"  ❌ {symbol}: {e}")
                     continue
             
-            # Добавляем бенчмарк
             try:
                 price, _, source = self.data_fetcher.get_current_price(self.benchmark_symbol)
                 if price and price > 0:
@@ -627,12 +577,10 @@ class MomentumBotMOEX:
             except Exception as e:
                 logger.error(f"Ошибка получения бенчмарка: {e}")
             
-            # Проверяем количество полученных активов
             if len(all_assets) == 0:
                 logger.error("❌ Не удалось получить данные ни для одного актива")
                 raise Exception("Не удалось получить данные по акциям")
             
-            # Кэшируем
             self._cache['top_assets'] = {
                 'data': all_assets,
                 'timestamp': datetime.now(),
@@ -672,7 +620,6 @@ class MomentumBotMOEX:
         df = self.data_fetcher.get_historical_data(symbol, days)
         
         if df is not None and len(df) > 0:
-            # Проверяем минимальное количество данных
             min_required_days = 250
             if len(df) < min_required_days:
                 logger.warning(f"⚠️ Мало исторических данных для {symbol}: {len(df)} дней (< {min_required_days})")
@@ -788,7 +735,6 @@ class MomentumBotMOEX:
     def calculate_momentum_values(self, asset_info: Dict) -> Optional[AssetData]:
         """
         Расчет значений моментума с использованием календарных дней
-        ДОБАВЛЕНО: расчет ATR и стоп-лосса
         """
         try:
             symbol = asset_info['symbol']
@@ -851,29 +797,24 @@ class MomentumBotMOEX:
             sma_slow = df['close'].tail(self.sma_slow_period).mean()
             sma_signal = sma_fast > sma_slow
             
-            # ДОБАВЛЕНО: Расчет ATR и стоп-лосса
             atr = self.data_fetcher.calculate_atr(df, period=self.atr_period)
             
-            # Расчет стоп-лосса на основе ATR
             stop_loss = 0.0
             atr_percent = 0.0
             
             if atr > 0 and current_price > 0:
                 atr_percent = (atr / current_price) * 100
                 
-                # Базовая формула стоп-лосса: цена - множитель * ATR
                 stop_loss_price = current_price - (self.atr_multiplier * atr)
                 
-                # Проверяем пределы стоп-лосса в процентах
                 stop_loss_percent = ((current_price - stop_loss_price) / current_price) * 100
                 
-                # Ограничиваем стоп-лосс минимальным и максимальным значениями
                 if stop_loss_percent < self.min_stop_loss_percent:
                     stop_loss_price = current_price * (1 - self.min_stop_loss_percent / 100)
                 elif stop_loss_percent > self.max_stop_loss_percent:
                     stop_loss_price = current_price * (1 - self.max_stop_loss_percent / 100)
                 
-                stop_loss = max(stop_loss_price, 0.01)  # Минимум 0.01
+                stop_loss = max(stop_loss_price, 0.01)
                 
                 logger.debug(f"  {symbol}: ATR={atr:.2f} ({atr_percent:.1f}%), Stop-Loss={stop_loss:.2f}")
             
@@ -919,7 +860,6 @@ class MomentumBotMOEX:
     def analyze_assets(self) -> List[AssetData]:
         """
         Анализ активов с секторным отбором
-        ИСПРАВЛЕНО: сектора теперь создаются для всех акций из конфига
         """
         top_assets = self.get_top_assets()
         if not top_assets:
@@ -930,10 +870,8 @@ class MomentumBotMOEX:
         
         benchmark_data = self.get_benchmark_data()
         
-        # Инициализируем сектора ИЗ КОНФИГА
         sector_performance = {}
         
-        # Создаем объекты SectorPerformance для ВСЕХ секторов из конфига
         for sector_name, sector_data in self.data_fetcher.sectors_config.get('sectors', {}).items():
             priority = sector_data.get('priority', 99)
             top_n = sector_data.get('top_n', 3)
@@ -946,7 +884,6 @@ class MomentumBotMOEX:
                 top_n=top_n
             )
         
-        # Добавляем сектор "Индекс" для бенчмарка
         sector_performance['Индекс'] = SectorPerformance(
             sector_name='Индекс',
             description='Индекс Мосбиржи полной доходности',
@@ -954,7 +891,6 @@ class MomentumBotMOEX:
             top_n=1
         )
         
-        # Группируем акции по секторам
         sector_assets = defaultdict(list)
         
         filter_stats = {
@@ -973,7 +909,6 @@ class MomentumBotMOEX:
         for i, asset_info in enumerate(top_assets):
             symbol = asset_info['symbol']
             
-            # Пропускаем бенчмарк в анализе
             if symbol == self.benchmark_symbol:
                 continue
                 
@@ -986,21 +921,18 @@ class MomentumBotMOEX:
                     logger.debug(f"  ⚠️ {symbol}: нет данных для анализа")
                     continue
                 
-                # ФИЛЬТР 1: 12M Momentum ≥ 0%
                 if asset_data.momentum_12m < self.min_12m_momentum:
                     filter_stats['failed_12m'] += 1
                     logger.debug(f"  ❌ {symbol}: низкий 12M моментум ({asset_data.momentum_12m:+.1f}% < {self.min_12m_momentum}%)")
                     continue
                 filter_stats['passed_12m'] += 1
                 
-                # ФИЛЬТР 2: Положительный SMA сигнал
                 if not asset_data.sma_signal:
                     filter_stats['failed_sma'] += 1
                     logger.debug(f"  ❌ {symbol}: отрицательный SMA сигнал")
                     continue
                 filter_stats['passed_sma'] += 1
                 
-                # ФИЛЬТР 3: Сравнение с бенчмарком
                 if benchmark_data:
                     if asset_data.absolute_momentum_6m <= benchmark_data['absolute_momentum_6m']:
                         filter_stats['failed_benchmark'] += 1
@@ -1010,17 +942,15 @@ class MomentumBotMOEX:
                 else:
                     logger.warning("Нет данных бенчмарка, пропускаем сравнение")
                 
-                # Добавляем акцию в соответствующий сектор
                 sector = asset_data.sector
                 
-                # ИСПРАВЛЕНО: создаем сектор если его нет
                 if sector not in sector_performance:
                     logger.info(f"  📝 Создаем новый сектор: {sector}")
                     sector_performance[sector] = SectorPerformance(
                         sector_name=sector,
                         description='Автоматически созданный сектор',
                         priority=99,
-                        top_n=1  # По умолчанию берем 1 акцию
+                        top_n=1
                     )
                 
                 sector_assets[sector].append(asset_data)
@@ -1033,11 +963,9 @@ class MomentumBotMOEX:
                 logger.error(traceback.format_exc())
                 continue
         
-        # ИСПРАВЛЕНО: отбираем топ-N акций из каждого сектора
         selected_assets = []
         
         for sector_name, assets in sector_assets.items():
-            # Получаем или создаем объект SectorPerformance
             if sector_name not in sector_performance:
                 logger.warning(f"⚠️ Сектор {sector_name} не найден в конфиге, создаем с параметрами по умолчанию")
                 sector_performance[sector_name] = SectorPerformance(
@@ -1052,23 +980,19 @@ class MomentumBotMOEX:
             performance.analyzed_stocks = len(assets)
             
             if assets:
-                # Сортируем по комбинированному моментуму
                 sorted_assets = sorted(assets, key=lambda x: x.combined_momentum, reverse=True)
                 
-                # Берем топ-N акций из сектора
                 top_n = min(performance.top_n, len(sorted_assets))
                 sector_selected = sorted_assets[:top_n]
                 
                 performance.selected_stocks = sector_selected
                 performance.passed_filters = len(sector_selected)
                 
-                # Рассчитываем средние показатели сектора
                 if sector_selected:
                     performance.avg_combined_momentum = np.mean([a.combined_momentum for a in sector_selected])
                     performance.avg_absolute_momentum_6m = np.mean([a.absolute_momentum_6m for a in sector_selected])
                     performance.avg_momentum_12m = np.mean([a.momentum_12m for a in sector_selected])
                     
-                    # ДОБАВЛЕНО: средний ATR в процентах
                     atr_percents = []
                     for a in sector_selected:
                         if a.atr > 0 and a.current_price > 0:
@@ -1078,23 +1002,18 @@ class MomentumBotMOEX:
                     if atr_percents:
                         performance.avg_atr_percent = np.mean(atr_percents)
                     
-                    # Сравнение с бенчмарком
                     if benchmark_data:
                         performance.vs_benchmark = performance.avg_absolute_momentum_6m - benchmark_data['absolute_momentum_6m']
                     
-                    # Оценочный балл сектора
                     performance.performance_score = performance.avg_combined_momentum * (100 - performance.priority) / 100
                 
                 selected_assets.extend(sector_selected)
                 logger.info(f"  📊 {sector_name}: отобрано {len(sector_selected)}/{len(assets)} акций")
         
-        # Сохраняем данные о производительности секторов
         self.sector_performance = sector_performance
         
-        # Сортируем все выбранные акции по комбинированному моментуму
         selected_assets.sort(key=lambda x: x.combined_momentum, reverse=True)
         
-        # Детальная статистика фильтрации
         logger.info("=" * 60)
         logger.info(f"📊 ИТОГ анализа: {len(selected_assets)} активов отобрано из {filter_stats['total']}")
         if benchmark_data:
@@ -1109,7 +1028,6 @@ class MomentumBotMOEX:
         logger.info(f"  • Без данных: {filter_stats['no_data']}")
         logger.info(f"  • Ошибки анализа: {filter_stats['errors']}")
         
-        # Секторная статистика
         logger.info(f"📈 Секторная статистика:")
         for sector_name, performance in sorted(self.sector_performance.items(), 
                                               key=lambda x: x[1].performance_score, reverse=True):
@@ -1131,22 +1049,18 @@ class MomentumBotMOEX:
     def generate_signals(self, assets: List[AssetData]) -> List[Dict]:
         """
         Генерация сигналов с секторной логикой
-        ДОБАВЛЕНО: проверка стоп-лосса
         """
         signals = []
         benchmark_data = self.get_benchmark_data()
         
-        # Создаем словарь активов для быстрого доступа
         asset_dict = {asset.symbol: asset for asset in assets}
         
-        # Создаем множество отобранных акций
         selected_symbols = {asset.symbol for asset in assets}
         
         for asset in assets:
             symbol = asset.symbol
             current_status = self.current_portfolio.get(symbol, {}).get('status', 'OUT')
             
-            # BUY сигнал (только для отобранных акций)
             if symbol in selected_symbols:
                 if (asset.absolute_momentum > 0 and
                     asset.sma_signal and
@@ -1175,7 +1089,6 @@ class MomentumBotMOEX:
                             'timestamp': datetime.now()
                         }
                         
-                        # ДОБАВЛЕНО: сохраняем стоп-лосс в портфель
                         self.current_portfolio[symbol] = {
                             'entry_time': datetime.now(),
                             'entry_price': asset.current_price,
@@ -1183,15 +1096,14 @@ class MomentumBotMOEX:
                             'name': asset.name,
                             'sector': asset.sector,
                             'source': asset.source,
-                            'stop_loss': asset.stop_loss,  # Сохраняем стоп-лосс
-                            'atr': asset.atr,  # Сохраняем ATR
+                            'stop_loss': asset.stop_loss,
+                            'atr': asset.atr,
                             'atr_percent': asset.atr / asset.current_price * 100 if asset.current_price > 0 else 0
                         }
                         
                         signals.append(signal)
                         logger.info(f"📈 BUY для {symbol} ({asset.name}, {asset.sector}), стоп-лосс: {asset.stop_loss:.2f}")
                     else:
-                        # Портфель полен, ищем худшую позицию
                         worst_position = None
                         worst_momentum = float('inf')
                         
@@ -1229,7 +1141,6 @@ class MomentumBotMOEX:
                             }
                             logger.info(f"📉 SELL для замены {worst_position}: {profit_percent:+.2f}%")
                             
-                            # Добавляем новую позицию со стоп-лоссом
                             buy_signal = {
                                 'symbol': symbol,
                                 'action': 'BUY',
@@ -1257,27 +1168,22 @@ class MomentumBotMOEX:
                             signals.append(buy_signal)
                             logger.info(f"📈 BUY для {symbol} (замена {worst_position}), стоп-лосс: {asset.stop_loss:.2f}")
             
-            # SELL сигнал (только для акций в портфеле)
             elif current_status == 'IN':
                 sell_reason = ""
                 should_sell = False
                 
-                # ДОБАВЛЕНО: Условие 1: Проверка стоп-лосса
                 if asset.stop_loss > 0 and asset.current_price <= asset.stop_loss:
                     sell_reason = f"Достигнут стоп-лосс ({asset.stop_loss:.2f})"
                     should_sell = True
                 
-                # Условие 2: Absolute Momentum 12M < 0%
                 elif asset.absolute_momentum < 0:
                     sell_reason = "Моментум 12M < 0%"
                     should_sell = True
                 
-                # Условие 3: SMA отрицательный
                 elif not asset.sma_signal:
                     sell_reason = "SMA отрицательный"
                     should_sell = True
                 
-                # Условие 4: Absolute Momentum 6M < Benchmark
                 elif benchmark_data and asset.absolute_momentum_6m < benchmark_data['absolute_momentum_6m']:
                     sell_reason = f"6M моментум ({asset.absolute_momentum_6m:+.1f}%) < бенчмарка ({benchmark_data['absolute_momentum_6m']:+.1f}%)"
                     should_sell = True
@@ -1287,7 +1193,6 @@ class MomentumBotMOEX:
                     entry_price = entry_data.get('entry_price', asset.current_price)
                     profit_percent = ((asset.current_price - entry_price) / entry_price) * 100
                     
-                    # ДОБАВЛЕНО: информация о стоп-лоссе в сигнал
                     signal = {
                         'symbol': symbol,
                         'action': 'SELL',
@@ -1385,7 +1290,6 @@ class MomentumBotMOEX:
                 
                 self.current_portfolio = state.get('current_portfolio', {})
                 
-                # Конвертируем строки времени обратно в datetime
                 for symbol, data in self.current_portfolio.items():
                     if 'entry_time' in data and isinstance(data['entry_time'], str):
                         data['entry_time'] = datetime.fromisoformat(data['entry_time'].replace('Z', '+00:00'))
@@ -1411,102 +1315,203 @@ class MomentumBotMOEX:
             logger.warning("🔄 Используется состояние по умолчанию")
     
     def format_active_positions(self) -> str:
-        """Форматирование списка активных позиций с учетом стоп-лосса"""
+        """
+        Форматирование списка активных позиций (исправленная версия)
+        """
         active_positions = {k: v for k, v in self.current_portfolio.items() 
-                          if v.get('status') == 'IN'}
+                        if v.get('status') == 'IN'}
         
         if not active_positions:
             return "📊 *АКТИВНЫХ ПОЗИЦИЙ НЕТ*\nВсе средства в рублях"
         
-        message = "📊 *АКТИВНЫЕ ПОЗИЦИИ:*\n"
-        message += "═══════════════════════════\n"
+        # Получаем данные бенчмарка
+        benchmark_data = self.get_benchmark_data()
+        benchmark_momentum = benchmark_data['absolute_momentum_6m'] if benchmark_data else 0
         
+        message = "📊 *ПОРТФЕЛЬ:* "
+        
+        # Группируем позиции по секторам
         sector_positions = defaultdict(list)
-        total_profit = 0
-        position_count = 0
+        all_profits = []
+        sector_stats = {}
         
         for symbol, data in active_positions.items():
             entry_price = data.get('entry_price', 0)
-            entry_time = data.get('entry_time', datetime.now())
-            name = data.get('name', symbol)
             sector = data.get('sector', 'Другое')
             stop_loss = data.get('stop_loss', 0)
             atr_percent = data.get('atr_percent', 0)
             
             try:
-                price, _, source = self.data_fetcher.get_current_price(symbol)
+                # Получаем текущую цену
+                price, _, _ = self.data_fetcher.get_current_price(symbol)
                 if price and price > 0:
                     profit_percent = ((price - entry_price) / entry_price) * 100
                     
-                    # ДОБАВЛЕНО: расчет расстояния до стоп-лосса
-                    stop_loss_distance = 0
-                    stop_loss_percent = 0
-                    if stop_loss > 0:
-                        stop_loss_distance = price - stop_loss
-                        stop_loss_percent = (stop_loss_distance / price) * 100
+                    # Получаем полные данные актива из asset_ranking
+                    asset_data = None
+                    for asset in self.asset_ranking:
+                        if asset.symbol == symbol:
+                            asset_data = asset
+                            break
                     
-                    sector_positions[sector].append({
+                    # Если не нашли в asset_ranking, пробуем получить данные отдельно
+                    if not asset_data:
+                        # Создаем asset_info для вызова calculate_momentum_values
+                        asset_info = {
+                            'symbol': symbol,
+                            'name': data.get('name', symbol),
+                            'sector': sector,
+                            'source': data.get('source', 'moex'),
+                            'market_type': 'stock'
+                        }
+                        # Получаем данные через calculate_momentum_values
+                        asset_data = self.calculate_momentum_values(asset_info)
+                    
+                    # Информация о позиции
+                    pos_info = {
                         'symbol': symbol,
-                        'name': name,
+                        'name': data.get('name', symbol),
                         'entry_price': entry_price,
                         'current_price': price,
                         'profit_percent': profit_percent,
-                        'entry_time': entry_time,
                         'stop_loss': stop_loss,
-                        'stop_loss_distance': stop_loss_distance,
-                        'stop_loss_percent': stop_loss_percent,
-                        'atr_percent': atr_percent
-                    })
+                        'atr_percent': atr_percent,
+                        'asset_data': asset_data
+                    }
                     
-                    total_profit += profit_percent
-                    position_count += 1
+                    sector_positions[sector].append(pos_info)
+                    all_profits.append(profit_percent)
+                    
+                    # Собираем статистику по сектору
+                    if sector not in sector_stats:
+                        sector_stats[sector] = {
+                            'positions': [],
+                            'combined_momentums': [],
+                            'atr_percents': [],
+                            'profits': []
+                        }
+                    
+                    sector_stats[sector]['positions'].append(symbol)
+                    sector_stats[sector]['profits'].append(profit_percent)
+                    
+                    if asset_data:
+                        sector_stats[sector]['combined_momentums'].append(asset_data.combined_momentum)
+                        if asset_data.atr > 0 and asset_data.current_price > 0:
+                            atr_pct = (asset_data.atr / asset_data.current_price) * 100
+                            sector_stats[sector]['atr_percents'].append(atr_pct)
+                            
             except Exception as e:
-                logger.error(f"Ошибка получения цены для {symbol}: {e}")
+                logger.error(f"Ошибка получения данных для {symbol}: {e}")
                 continue
         
+        # Если нет позиций с данными
+        if not sector_positions:
+            return "📊 *Нет данных по позициям*"
+        
+        total_avg = sum(all_profits) / len(all_profits) if all_profits else 0
+        message += f"{len(active_positions)} акций | 📈{total_avg:+.2f}%\n\n"
+        
         # Выводим позиции по секторам
-        for sector, positions in sector_positions.items():
-            message += f"🏢 *{sector}:* {len(positions)} позиций\n"
+        for sector, positions in sorted(sector_positions.items()):
+            # Сортируем позиции по прибыли
             positions.sort(key=lambda x: x['profit_percent'], reverse=True)
             
-            for pos in positions[:5]:
-                profit_emoji = "📈" if pos['profit_percent'] > 0 else "📉"
+            # Средняя прибыль по сектору
+            sector_profits = [p['profit_percent'] for p in positions]
+            sector_avg = sum(sector_profits) / len(sector_profits) if sector_profits else 0
+            
+            message += f"🏢 *{sector} ({len(positions)}): {sector_avg:+.2f}%*\n"
+            
+            for pos in positions:
+                emoji = "🟢" if pos['profit_percent'] > 0 else "🔴"
                 
-                # ДОБАВЛЕНО: информация о стоп-лоссе
-                stop_loss_info = ""
+                # Основная строка
+                main_line = f"• {pos['symbol']} {pos['profit_percent']:+.2f}% {emoji}"
+                
+                # Цены (без слов "вход" и "текущая")
+                price_line = f"({pos['entry_price']:.2f}→{pos['current_price']:.2f})"
+                
+                # Стоп-лосс
+                stop_loss_percent = 0
                 if pos['stop_loss'] > 0:
-                    if pos['stop_loss_percent'] > 0:
-                        stop_loss_info = f"⛔ Стоп-лосс: {pos['stop_loss']:.2f} руб (-{pos['stop_loss_percent']:.1f}%)"
-                    else:
-                        stop_loss_info = f"⛔ Стоп-лосс достигнут!"
+                    stop_loss_percent = ((pos['current_price'] - pos['stop_loss']) / pos['current_price']) * 100
+                stop_line = f" SL({pos['stop_loss']:.2f})"
                 
-                message += (
-                    f"• {pos['symbol']} ({pos['name'][:15]}): {pos['profit_percent']:+.2f}% {profit_emoji}\n"
-                    f"  💰 Вход: {pos['entry_price']:.2f} руб\n"
-                    f"  💰 Текущая: {pos['current_price']:.2f} руб\n"
-                    f"  📊 ATR: {pos['atr_percent']:.1f}%\n"
-                )
+                # SMA сигнал
+                sma_signal = "↑" if pos['asset_data'] and pos['asset_data'].sma_signal else "↓"
+                sma_line = f" | SMA:{sma_signal}"
                 
-                if stop_loss_info:
-                    message += f"  {stop_loss_info}\n"
+                # Моментумы и сравнение с бенчмарком
+                momentum_line = ""
+                if pos['asset_data']:
+                    # Для 6M моментума показываем абсолютный
+                    momentum_6m_abs = pos['asset_data'].absolute_momentum_6m
+                    momentum_6m_rel = pos['asset_data'].momentum_6m
+                    momentum_1m = pos['asset_data'].momentum_1m
+                    
+                    # Сравнение с бенчмарком
+                    vs_benchmark = momentum_6m_abs - benchmark_momentum if benchmark_data else 0
+                    
+                    # Форматируем строку с моментами
+                    momentum_line = (
+                        f"\nКомби: {pos['asset_data'].combined_momentum:+.1f}%"
+                        f"(12M: {pos['asset_data'].momentum_12m:+.1f}%, "
+                        f"6M: {momentum_6m_abs:+.1f}% "
+                        f"6M: {momentum_6m_rel:+.1f}% | "
+                        f"бенч: {vs_benchmark:+.1f}%)"
+                    )
                 
-                message += f"  ─\n"
+                # Собираем строку
+                message += f"{main_line} {price_line}{stop_line}{sma_line}"
+                if momentum_line:
+                    message += momentum_line
+                message += "\n"
             
-            if len(positions) > 5:
-                message += f"  ... и еще {len(positions) - 5} позиций\n"
+            message += "\n"
+        
+        # Секторная статистика
+        message += "*Секторная статистика:*\n"
+        
+        # Эмодзи для секторов
+        sector_emojis = {
+            'Электроэнергетика': '⚡',
+            'Потребительские товары': '🛒',
+            'Прочие': '📦',
+            'Фармацевтика и медицина': '💊',
+            'Металлы и добыча': '⚙️',
+            'Информационные технологии': '💻',
+            'Нефть и газ': '🛢️',
+            'Финансы': '🏦',
+            'Другое': '📁'
+        }
+        
+        for sector, stats in sector_stats.items():
+            emoji = sector_emojis.get(sector, '📊')
             
-            message += f"  ─\n"
-        
-        if position_count > 0:
-            avg_profit = total_profit / position_count
-            message += f"═══════════════════════════\n"
-            message += f"📈 Средняя прибыль: {avg_profit:+.2f}%\n"
-        
-        message += f"🔢 Всего позиций: {len(active_positions)}\n"
-        message += f"⚠️ Управление рисками: стоп-лосс на основе ATR x{self.atr_multiplier}"
+            # Средний комбинированный моментум
+            avg_momentum = 0
+            if stats['combined_momentums']:
+                avg_momentum = sum(stats['combined_momentums']) / len(stats['combined_momentums'])
+            
+            # Средний ATR
+            avg_atr = 0
+            if stats['atr_percents']:
+                avg_atr = sum(stats['atr_percents']) / len(stats['atr_percents'])
+            
+            # Формируем строку - ВСЕГДА выводим средний моментум, даже если 0
+            sector_line = f"{emoji} {sector}: {len(stats['positions'])} акций"
+            
+            # Всегда выводим средний моментум
+            sector_line += f", средний моментум: {avg_momentum:+.1f}%"
+            
+            # Выводим ATR только если он есть
+            if avg_atr != 0:
+                sector_line += f", ATR: {avg_atr:.1f}%"
+            
+            message += f"{sector_line}\n"
         
         return message
-    
+
     def format_sector_performance(self) -> str:
         """Форматирование эффективности секторов с ATR"""
         if not self.sector_performance:
@@ -1528,7 +1533,6 @@ class MomentumBotMOEX:
         
         for sector_name, performance in sorted_sectors:
             if performance and performance.selected_stocks:
-                # ДОБАВЛЕНО: информация о ATR
                 atr_info = f"📊 Средний ATR: {performance.avg_atr_percent:.1f}%\n" if performance.avg_atr_percent > 0 else ""
                 
                 message += (
@@ -1553,14 +1557,12 @@ class MomentumBotMOEX:
         message += f"═══════════════════════════\n"
         message += f"📈 Всего отобрано акций: {total_selected}\n"
         message += f"📊 Всего проанализировано: {total_analyzed}\n"
-        message += f"⚠️ Управление рисками: ATR({self.atr_period}) стоп-лосс x{self.atr_multiplier}"
         
         return message
     
     def format_signal_message(self, signal: Dict) -> str:
         """Форматирование сигнала с информацией о стоп-лоссе"""
         if signal['action'] == 'BUY':
-            # ДОБАВЛЕНО: информация о ATR и стоп-лоссе
             atr_info = f"📊 ATR: {signal.get('atr', 0):.2f} руб\n"
             stop_loss_info = f"⛔ Стоп-лосс: **{signal.get('stop_loss', 0):.2f} руб**\n"
             
@@ -1584,7 +1586,6 @@ class MomentumBotMOEX:
         else:
             profit_emoji = "📈" if signal['profit_percent'] > 0 else "📉"
             
-            # ДОБАВЛЕНО: информация о причине выхода
             stop_loss_hit = "⛔" if "стоп-лосс" in signal['reason'].lower() else ""
             
             return (
@@ -1623,7 +1624,6 @@ class MomentumBotMOEX:
         for asset in assets:
             sector_assets[asset.sector].append(asset)
         
-        # Выводим по секторам
         for sector, sector_stocks in sector_assets.items():
             message += f"🏢 *{sector}:*\n"
             
@@ -1640,7 +1640,6 @@ class MomentumBotMOEX:
                     else:
                         benchmark_comparison = f" ({vs_benchmark:.1f}% vs MCFTR)"
                 
-                # ДОБАВЛЕНО: информация о ATR и стоп-лоссе
                 atr_info = f", ATR: {asset.atr/asset.current_price*100:.1f}%" if asset.atr > 0 else ""
                 stop_loss_info = f"\n  ⛔ SL: {asset.stop_loss:.2f} руб" if asset.stop_loss > 0 else ""
                 
@@ -1683,7 +1682,6 @@ class MomentumBotMOEX:
                 self.clear_cache()
                 logger.info("🔄 Кэш очищен из-за большого количества ошибок")
             
-            # Анализируем активы ТОЛЬКО из конфига
             assets = self.analyze_assets()
             
             if not assets:
@@ -1716,17 +1714,14 @@ class MomentumBotMOEX:
             
             self.asset_ranking = assets
             
-            # Генерируем сигналы с учетом стоп-лосса
             signals = self.generate_signals(assets)
             
-            # Отправляем сигналы в Telegram
             for signal in signals:
                 message = self.format_signal_message(signal)
                 if self.send_telegram_message(message, force=True):
                     self.signal_history.append(signal)
                     logger.info(f"✅ Сигнал отправлен: {signal['symbol']} {signal['action']}")
             
-            # Отправляем рейтинг
             if self.should_send_notification():
                 ranking_message = self.format_ranking_message(assets)
                 self.send_telegram_message(ranking_message, force=True)
@@ -1783,10 +1778,8 @@ class MomentumBotMOEX:
         logger.info("🚀 ЗАПУСК MOMENTUM BOT ДЛЯ МОСБИРЖИ (Секторный отбор + ATR стоп-лосс)")
         logger.info("=" * 60)
         
-        # Загружаем состояние
         self.load_state()
         
-        # Проверяем доступность MOEX API
         logger.info("🔍 Проверка доступности MOEX API...")
         if not self.data_fetcher.test_moex_connection():
             logger.error("❌ MOEX API недоступен. Проверьте подключение к интернету.")
@@ -1801,7 +1794,6 @@ class MomentumBotMOEX:
         else:
             logger.info("✅ MOEX API доступен")
         
-        # Проверяем наличие конфига
         config_file = 'sectors_config.json'
         if not os.path.exists(config_file):
             logger.error(f"❌ Конфигурационный файл {config_file} не найден!")
@@ -1814,7 +1806,6 @@ class MomentumBotMOEX:
                 )
             return
         
-        # Приветственное сообщение
         if self.telegram_token and self.telegram_chat_id:
             welcome_msg = (
                 "🚀 *MOMENTUM BOT ДЛЯ МОСБИРЖИ ЗАПУЩЕН*\n"
