@@ -112,11 +112,14 @@ class MOEXDataFetcher:
         self.session.headers.update({'User-Agent': 'MomentumBotMOEX/1.0'})
         
         self.stocks_cache_file = 'logs/moex_stocks_cache.json'
-        self.stocks_cache_ttl = 180 * 24 * 3600
+        self.stocks_cache_ttl = 30 * 24 * 3600  # Увеличен с 180 до 30 дней
         
         self.benchmark_symbol = 'MCFTR'
         
         self.sectors_config = self.load_sectors_config()
+        
+        self.request_delay = 0.5  # Задержка между запросами API
+        self.max_retries = 3  # Максимальное количество повторных попыток
         
         logger.info(f"✅ MOEXDataFetcher инициализирован. apimoex доступен: {HAS_APIMOEX}")
         
@@ -201,48 +204,59 @@ class MOEXDataFetcher:
     def get_current_price(self, symbol: str) -> Tuple[Optional[float], Optional[float], str]:
         """
         Получение текущей цены БЕЗ ЗАПРОСА ОБЪЕМА
+        Добавлена задержка и обработка ошибок API
         """
         source = 'unknown'
         
-        try:
-            endpoints = [
-                (f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{symbol}.json", 'TQBR'),
-                (f"https://iss.moex.com/iss/engines/stock/markets/index/boards/SNDX/securities/{symbol}.json", 'SNDX'),
-            ]
-            
-            for url, board_type in endpoints:
-                try:
-                    response = self.session.get(url, timeout=10)
-                    if response.status_code == 200:
-                        data = response.json()
-                        
-                        marketdata = data.get('marketdata', {}).get('data', [])
-                        if marketdata:
-                            row = marketdata[0]
-                            columns = data.get('marketdata', {}).get('columns', [])
+        for attempt in range(self.max_retries):
+            try:
+                endpoints = [
+                    (f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{symbol}.json", 'TQBR'),
+                    (f"https://iss.moex.com/iss/engines/stock/markets/index/boards/SNDX/securities/{symbol}.json", 'SNDX'),
+                ]
+                
+                for url, board_type in endpoints:
+                    try:
+                        response = self.session.get(url, timeout=10)
+                        if response.status_code == 200:
+                            data = response.json()
                             
-                            price_idx = columns.index('LAST') if 'LAST' in columns else -1
-                            
-                            if price_idx != -1 and len(row) > price_idx:
-                                price = row[price_idx]
+                            marketdata = data.get('marketdata', {}).get('data', [])
+                            if marketdata:
+                                row = marketdata[0]
+                                columns = data.get('marketdata', {}).get('columns', [])
                                 
-                                if price is not None:
-                                    try:
-                                        price_float = float(price)
-                                        if price_float > 0:
-                                            source = f'moex_api_{board_type}'
-                                            logger.debug(f"✅ Найден {symbol} на {board_type}: {price_float}")
-                                            return price_float, 0, source
-                                    except (ValueError, TypeError) as e:
-                                        logger.debug(f"Ошибка преобразования цены {symbol}: {price} -> {e}")
-                                        continue
-                except Exception as e:
-                    logger.debug(f"Endpoint {board_type} для {symbol}: {e}")
-                    continue
-        
-        except Exception as e:
-            logger.error(f"❌ Ошибка получения цены для {symbol}: {e}")
-            logger.error(traceback.format_exc())
+                                price_idx = columns.index('LAST') if 'LAST' in columns else -1
+                                
+                                if price_idx != -1 and len(row) > price_idx:
+                                    price = row[price_idx]
+                                    
+                                    if price is not None:
+                                        try:
+                                            price_float = float(price)
+                                            if price_float > 0:
+                                                source = f'moex_api_{board_type}'
+                                                logger.debug(f"✅ Найден {symbol} на {board_type}: {price_float}")
+                                                return price_float, 0, source
+                                        except (ValueError, TypeError) as e:
+                                            logger.debug(f"Ошибка преобразования цены {symbol}: {price} -> {e}")
+                                            continue
+                        elif response.status_code == 429:  # Too Many Requests
+                            logger.warning(f"⚠️ Rate limit для {symbol}, попытка {attempt+1}/{self.max_retries}")
+                            time.sleep(2 ** attempt)  # Экспоненциальная задержка
+                    except Exception as e:
+                        logger.debug(f"Endpoint {board_type} для {symbol}: {e}")
+                        continue
+                
+                # Задержка между запросами
+                time.sleep(self.request_delay)
+                
+            except Exception as e:
+                logger.error(f"❌ Ошибка получения цены для {symbol}: {e}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(1)
+                else:
+                    logger.error(traceback.format_exc())
         
         logger.warning(f"⚠️ Не удалось получить цену для {symbol}")
         return None, 0, source
@@ -250,81 +264,92 @@ class MOEXDataFetcher:
     def get_historical_data(self, symbol: str, days: int = 400) -> Optional[pd.DataFrame]:
         """
         Получение исторических данных за указанное количество дней
+        Добавлена задержка и обработка ошибок API
         """
-        try:
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=days)
-            start_date_str = start_date.strftime('%Y-%m-%d')
-            end_date_str = end_date.strftime('%Y-%m-%d')
-            
-            logger.debug(f"Запрос исторических данных для {symbol} с {start_date_str} по {end_date_str}")
-            
-            if HAS_APIMOEX:
-                try:
-                    for board in ['TQBR', 'TQTD', 'SNDX']:
-                        try:
-                            data = apimoex.get_board_candles(
-                                self.session,
-                                security=symbol,
-                                board=board,
-                                interval=24,
-                                start=start_date_str,
-                                end=end_date_str
-                            )
+        for attempt in range(self.max_retries):
+            try:
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=days)
+                start_date_str = start_date.strftime('%Y-%m-%d')
+                end_date_str = end_date.strftime('%Y-%m-%d')
+                
+                logger.debug(f"Запрос исторических данных для {symbol} с {start_date_str} по {end_date_str}")
+                
+                if HAS_APIMOEX:
+                    try:
+                        for board in ['TQBR', 'TQTD', 'SNDX']:
+                            try:
+                                data = apimoex.get_board_candles(
+                                    self.session,
+                                    security=symbol,
+                                    board=board,
+                                    interval=24,
+                                    start=start_date_str,
+                                    end=end_date_str
+                                )
+                                
+                                if data and len(data) > 0:
+                                    df = pd.DataFrame(data)
+                                    df = df.rename(columns={'end': 'timestamp'})
+                                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                                    df = df.sort_values('timestamp')
+                                    
+                                    for col in ['open', 'close', 'high', 'low']:
+                                        if col in df.columns:
+                                            df[col] = pd.to_numeric(df[col], errors='coerce')
+                                    
+                                    logger.info(f"✅ apimoex: получено {len(df)} свечей для {symbol} на {board}")
+                                    return df
+                            except Exception as e:
+                                logger.debug(f"apimoex {board} для {symbol}: {e}")
+                                continue
+                    except Exception as e:
+                        logger.debug(f"apimoex общая ошибка для {symbol}: {e}")
+                
+                logger.debug(f"Используем резервный API для исторических данных {symbol}")
+                
+                for market, board in [('shares', 'TQBR'), ('index', 'SNDX')]:
+                    url = f"https://iss.moex.com/iss/engines/stock/markets/{market}/boards/{board}/securities/{symbol}/candles.json"
+                    params = {
+                        'from': start_date_str,
+                        'till': end_date_str,
+                        'interval': 24,
+                        'candles.columns': 'open,close,high,low,value,volume,end'
+                    }
+                    
+                    try:
+                        response = self.session.get(url, params=params, timeout=30)
+                        
+                        if response.status_code == 200:
+                            data = response.json()
+                            candles = data.get('candles', {}).get('data', [])
                             
-                            if data and len(data) > 0:
-                                df = pd.DataFrame(data)
-                                df = df.rename(columns={'end': 'timestamp'})
+                            if candles:
+                                df = pd.DataFrame(candles, columns=['open', 'close', 'high', 'low', 'value', 'volume', 'timestamp'])
                                 df['timestamp'] = pd.to_datetime(df['timestamp'])
                                 df = df.sort_values('timestamp')
                                 
                                 for col in ['open', 'close', 'high', 'low']:
-                                    if col in df.columns:
-                                        df[col] = pd.to_numeric(df[col], errors='coerce')
+                                    df[col] = pd.to_numeric(df[col], errors='coerce')
                                 
-                                logger.info(f"✅ apimoex: получено {len(df)} свечей для {symbol} на {board}")
+                                logger.info(f"✅ Старый метод: получено {len(df)} свечей для {symbol}")
                                 return df
-                        except Exception as e:
-                            logger.debug(f"apimoex {board} для {symbol}: {e}")
-                            continue
-                except Exception as e:
-                    logger.debug(f"apimoex общая ошибка для {symbol}: {e}")
-            
-            logger.debug(f"Используем резервный API для исторических данных {symbol}")
-            
-            for market, board in [('shares', 'TQBR'), ('index', 'SNDX')]:
-                url = f"https://iss.moex.com/iss/engines/stock/markets/{market}/boards/{board}/securities/{symbol}/candles.json"
-                params = {
-                    'from': start_date_str,
-                    'till': end_date_str,
-                    'interval': 24,
-                    'candles.columns': 'open,close,high,low,value,volume,end'
-                }
-                
-                try:
-                    response = self.session.get(url, params=params, timeout=30)
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        candles = data.get('candles', {}).get('data', [])
+                        elif response.status_code == 429:  # Too Many Requests
+                            logger.warning(f"⚠️ Rate limit для {symbol}, попытка {attempt+1}/{self.max_retries}")
+                            time.sleep(2 ** attempt)  # Экспоненциальная задержка
+                    except Exception as e:
+                        logger.debug(f"Старый метод для {symbol} ({market}/{board}): {e}")
+                        continue
                         
-                        if candles:
-                            df = pd.DataFrame(candles, columns=['open', 'close', 'high', 'low', 'value', 'volume', 'timestamp'])
-                            df['timestamp'] = pd.to_datetime(df['timestamp'])
-                            df = df.sort_values('timestamp')
-                            
-                            for col in ['open', 'close', 'high', 'low']:
-                                df[col] = pd.to_numeric(df[col], errors='coerce')
-                            
-                            logger.info(f"✅ Старый метод: получено {len(df)} свечей для {symbol}")
-                            return df
-                except Exception as e:
-                    logger.debug(f"Старый метод для {symbol} ({market}/{board}): {e}")
-                    continue
-                    
-        except Exception as e:
-            logger.error(f"❌ Ошибка получения исторических данных для {symbol}: {e}")
-            logger.error(traceback.format_exc())
+                # Задержка между запросами
+                time.sleep(self.request_delay)
+                
+            except Exception as e:
+                logger.error(f"❌ Ошибка получения исторических данных для {symbol}: {e}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(1)
+                else:
+                    logger.error(traceback.format_exc())
         
         logger.warning(f"⚠️ Не удалось получить исторические данные для {symbol}")
         return None
@@ -398,10 +423,13 @@ class MomentumBotMOEX:
         self.top_assets_count = 200
         self.selected_count = 10
         
-        self.check_interval = 4 * 3600
+        # Изменено: проверка по расписанию 2 раза в день
+        self.check_times = ["14:10", "19:10"]  # GMT+3
+        self.report_time = "19:30"  # GMT+3 для отправки отчета
+        self.check_interval = 12 * 3600  # Фолбэк интервал 12 часов
         
         self.last_notification_time = None
-        self.notification_interval = 24 * 3600
+        self.notification_interval = 24 * 3600  # Оповещения раз в 24 часа
         
         self.min_12m_momentum = 0.0
         
@@ -424,11 +452,12 @@ class MomentumBotMOEX:
         
         self.sector_performance: Dict[str, SectorPerformance] = {}
         
+        # Увеличен TTL кэша
         self._cache = {
-            'top_assets': {'data': None, 'timestamp': None, 'ttl': 24*3600},
+            'top_assets': {'data': None, 'timestamp': None, 'ttl': 48 * 3600},  # 48 часов вместо 24
             'historical_data': {},
-            'benchmark_data': {'data': None, 'timestamp': None, 'ttl': 3600},
-            'stocks_list': {'data': None, 'timestamp': None, 'ttl': 180*24*3600}
+            'benchmark_data': {'data': None, 'timestamp': None, 'ttl': 24 * 3600},  # 24 часа вместо 1
+            'stocks_list': {'data': None, 'timestamp': None, 'ttl': 30 * 24 * 3600}  # 30 дней вместо 180
         }
         
         self.errors_count = 0
@@ -440,14 +469,18 @@ class MomentumBotMOEX:
         self.use_sector_selection = True
         self.test_mode = False
         
+        # Задержка между запросами при анализе
+        self.analysis_request_delay = 0.5
+        
         logger.info("🚀 Momentum Bot для Московской биржи инициализирован")
         logger.info(f"📊 Параметры: Секторный отбор {self.top_assets_count} акций")
         logger.info(f"⚙️ Фильтры: 12M > {self.min_12m_momentum}%, SMA положительный")
         logger.info(f"📈 Источник данных: {'apimoex' if HAS_APIMOEX else 'MOEX API (apimoex недоступен)'}")
-        logger.info(f"⏰ Проверка: каждые {self.check_interval//3600} часа, оповещение: каждые 24 часа")
+        logger.info(f"🕐 Расписание: проверки в 14:10 и 19:10, отчет в 19:30 (GMT+3)")
         logger.info(f"📊 Бенчмарк: {self.benchmark_symbol} ({self.benchmark_name})")
         logger.info(f"🎯 Стратегия: {'Секторный отбор' if self.use_sector_selection else 'Топ-10 отбор'}")
         logger.info(f"⚠️ Управление рисками: ATR({self.atr_period}) стоп-лосс x{self.atr_multiplier}")
+        logger.info(f"⏱️ Задержка между запросами: {self.analysis_request_delay} сек")
         
         if self.telegram_token and self.telegram_chat_id:
             logger.info("✅ Telegram настроен корректно")
@@ -458,10 +491,10 @@ class MomentumBotMOEX:
         """Очистка кэша данных"""
         logger.info("🧹 Очистка кэша данных...")
         self._cache = {
-            'top_assets': {'data': None, 'timestamp': None, 'ttl': 24*3600},
+            'top_assets': {'data': None, 'timestamp': None, 'ttl': 48*3600},
             'historical_data': {},
-            'benchmark_data': {'data': None, 'timestamp': None, 'ttl': 3600},
-            'stocks_list': {'data': None, 'timestamp': None, 'ttl': 180*24*3600}
+            'benchmark_data': {'data': None, 'timestamp': None, 'ttl': 24*3600},
+            'stocks_list': {'data': None, 'timestamp': None, 'ttl': 30*24*3600}
         }
         logger.info("✅ Кэш очищен")
     
@@ -488,10 +521,10 @@ class MomentumBotMOEX:
         self._cache['stocks_list'] = {
             'data': stocks_list,
             'timestamp': datetime.now(),
-            'ttl': 180*24*3600
+            'ttl': 30*24*3600  # 30 дней
         }
         
-        logger.info(f"✅ Получено {len(stocks_list)} акций из конфига, сохранено в кэш на 180 дней")
+        logger.info(f"✅ Получено {len(stocks_list)} акций из конфига, сохранено в кэш на 30 дней")
         
         sector_stats = {}
         for stock in stocks_list:
@@ -553,8 +586,9 @@ class MomentumBotMOEX:
                     
                     logger.debug(f"  ✅ {symbol}: {price:.2f} руб ({stock.get('sector', 'Другое')})")
                     
-                    if i % 20 == 0:
-                        time.sleep(0.5)
+                    # Задержка между запросами
+                    if i % 5 == 0:
+                        time.sleep(self.analysis_request_delay)
                             
                 except Exception as e:
                     filtered_assets.append(f"❌ {symbol}: ошибка {str(e)[:50]}")
@@ -584,7 +618,7 @@ class MomentumBotMOEX:
             self._cache['top_assets'] = {
                 'data': all_assets,
                 'timestamp': datetime.now(),
-                'ttl': 24*3600
+                'ttl': 48*3600  # 48 часов
             }
             
             logger.info(f"✅ Сформирован список из {len(all_assets)} активов (включая бенчмарк)")
@@ -599,14 +633,15 @@ class MomentumBotMOEX:
                     f"Не удалось получить данные акций:\n"
                     f"```{str(e)[:100]}```\n"
                     f"Бот остановлен.",
-                    silent=False
+                    silent=False,
+                    force=True
                 )
             raise
     
     @lru_cache(maxsize=200)
     def get_cached_historical_data(self, symbol: str, days: int = 400) -> Optional[pd.DataFrame]:
         """
-        Получение исторических данных с кэшированием на 1 час
+        Получение исторических данных с кэшированием на 24 часа
         """
         cache_key = f"{symbol}_{days}"
         
@@ -627,7 +662,7 @@ class MomentumBotMOEX:
             self._cache['historical_data'][cache_key] = {
                 'data': df,
                 'timestamp': datetime.now(),
-                'ttl': 3600
+                'ttl': 24 * 3600  # 24 часа вместо 1
             }
         else:
             logger.error(f"❌ Не удалось получить исторические данные для {symbol}")
@@ -721,7 +756,7 @@ class MomentumBotMOEX:
             self._cache['benchmark_data'] = {
                 'data': benchmark_data,
                 'timestamp': datetime.now(),
-                'ttl': 3600
+                'ttl': 24 * 3600  # 24 часа вместо 1
             }
             
             logger.info(f"✅ Данные бенчмарка: 6M моментум = {absolute_momentum_6m:.2f}%, 12M моментум = {absolute_momentum_12m:.2f}%")
@@ -956,6 +991,10 @@ class MomentumBotMOEX:
                 sector_assets[sector].append(asset_data)
                 filter_stats['passed_all'] += 1
                 logger.debug(f"  ✅ {symbol}: добавлен в сектор {sector}")
+                
+                # Задержка между запросами для предотвращения rate limiting
+                if i % 5 == 0:
+                    time.sleep(self.analysis_request_delay)
                 
             except Exception as e:
                 filter_stats['errors'] += 1
@@ -1232,8 +1271,13 @@ class MomentumBotMOEX:
     def send_telegram_message(self, message: str, silent: bool = False, force: bool = False) -> bool:
         """
         Отправка сообщения в Telegram
+        Исправлено: удален force=True для ежесуточных сообщений
         """
-        if not force and not self.should_send_notification() and not silent:
+        # Для force сообщений (сигналы, ошибки) отправляем всегда
+        if force:
+            logger.debug(f"📨 Принудительная отправка сообщения (force=True)")
+        # Для не-force сообщений проверяем лимит 24 часа
+        elif not force and not self.should_send_notification() and not silent:
             logger.debug(f"⏰ Пропускаем оповещение (прошло менее 24 часов)")
             return False
         
@@ -1317,6 +1361,7 @@ class MomentumBotMOEX:
     def format_active_positions(self) -> str:
         """
         Форматирование списка активных позиций (исправленная версия)
+        Исправлено: убрано дублирование 6M моментума
         """
         active_positions = {k: v for k, v in self.current_portfolio.items() 
                         if v.get('status') == 'IN'}
@@ -1441,23 +1486,17 @@ class MomentumBotMOEX:
                 sma_signal = "↑" if pos['asset_data'] and pos['asset_data'].sma_signal else "↓"
                 sma_line = f" | SMA:{sma_signal}"
                 
-                # Моментумы и сравнение с бенчмарком
+                # Моментумы и сравнение с бенчмарком (ИСПРАВЛЕНО: убрано дублирование 6M)
                 momentum_line = ""
                 if pos['asset_data']:
-                    # Для 6M моментума показываем абсолютный
-                    momentum_6m_abs = pos['asset_data'].absolute_momentum_6m
-                    momentum_6m_rel = pos['asset_data'].momentum_6m
-                    momentum_1m = pos['asset_data'].momentum_1m
-                    
-                    # Сравнение с бенчмарком
-                    vs_benchmark = momentum_6m_abs - benchmark_momentum if benchmark_data else 0
+                    # Только абсолютный 6M моментум
+                    vs_benchmark = pos['asset_data'].absolute_momentum_6m - benchmark_momentum if benchmark_data else 0
                     
                     # Форматируем строку с моментами
                     momentum_line = (
                         f"\nКомби: {pos['asset_data'].combined_momentum:+.1f}%"
                         f"(12M: {pos['asset_data'].momentum_12m:+.1f}%, "
-                        f"6M: {momentum_6m_abs:+.1f}% "
-                        f"6M: {momentum_6m_rel:+.1f}% | "
+                        f"6M: {pos['asset_data'].absolute_momentum_6m:+.1f}% | "
                         f"бенч: {vs_benchmark:+.1f}%)"
                     )
                 
@@ -1512,51 +1551,125 @@ class MomentumBotMOEX:
         
         return message
 
-    def format_sector_performance(self) -> str:
-        """Форматирование эффективности секторов с ATR"""
-        if not self.sector_performance:
-            return "📊 *Нет данных о секторах*"
+    def format_combined_report(self, assets: List[AssetData]) -> str:
+        """
+        Объединенный отчет: рейтинг акций + эффективность секторов
+        Использует новый формат как вы просили
+        """
+        if not assets:
+            return "📊 *Нет данных для отчета*"
         
         benchmark_data = self.get_benchmark_data()
         benchmark_momentum = benchmark_data['absolute_momentum_6m'] if benchmark_data else 0
+        current_date = datetime.now().strftime('%d.%m.%Y')
         
-        message = "📊 *ЭФФЕКТИВНОСТЬ СЕКТОРОВ*\n"
+        # Группируем активы по секторам
+        sector_assets = defaultdict(list)
+        for asset in assets:
+            sector_assets[asset.sector].append(asset)
+        
+        # Сортируем активы в каждом секторе по комбинированному моментуму
+        for sector in sector_assets:
+            sector_assets[sector].sort(key=lambda x: x.combined_momentum, reverse=True)
+        
+        # Получаем общее количество акций в каждом секторе из конфига
+        sector_totals = {}
+        for sector_name, sector_data in self.data_fetcher.sectors_config.get('sectors', {}).items():
+            sector_totals[sector_name] = len(sector_data.get('stocks', []))
+        
+        # Сортируем секторы по среднему комбинированному моментуму (самые растущие выше)
+        sorted_sectors = []
+        for sector, assets_list in sector_assets.items():
+            if assets_list:
+                avg_momentum = np.mean([a.combined_momentum for a in assets_list])
+                avg_vs_benchmark = np.mean([a.absolute_momentum_6m - benchmark_momentum for a in assets_list])
+                sorted_sectors.append({
+                    'name': sector,
+                    'assets': assets_list,
+                    'avg_momentum': avg_momentum,
+                    'avg_vs_benchmark': avg_vs_benchmark,
+                    'total_in_sector': sector_totals.get(sector, len(assets_list))
+                })
+        
+        # Сортируем секторы по среднему моментуму (убывание)
+        sorted_sectors.sort(key=lambda x: x['avg_momentum'], reverse=True)
+        
+        # Эмодзи для секторов
+        sector_emojis = {
+            'Нефть и газ': '🛢️',
+            'Финансы': '🏦',
+            'Металлы и добыча': '⚙️',
+            'Потребительские товары': '🛒',
+            'Электроэнергетика': '⚡',
+            'Прочие': '📦',
+            'Фармацевтика и медицина': '💊',
+            'Информационные технологии': '💻',
+            'Индекс': '📈',
+            'Другое': '📁'
+        }
+        
+        # Формируем сообщение
+        message = f"🎯 MOMENTUM ОБЗОР РОССИЙСКОГО РЫНКА\n"
+        message += f"📅 {current_date} | 📈 Бенчмарк MCFTR: {benchmark_momentum:+.1f}% (6M)\n"
+        message += "═══════════════════════════\n\n"
+        
+        # Выводим каждый сектор с топ-3 акциями
+        for sector_info in sorted_sectors:
+            sector = sector_info['name']
+            emoji = sector_emojis.get(sector, '📊')
+            selected_count = len(sector_info['assets'])
+            total_in_sector = sector_info['total_in_sector']
+            avg_momentum = sector_info['avg_momentum']
+            avg_vs_benchmark = sector_info['avg_vs_benchmark']
+            
+            message += f"{emoji} {sector.upper()} ({selected_count}/{total_in_sector}, средний {avg_momentum:+.1f}% | vs бенч: {avg_vs_benchmark:+.1f}%):\n\n"
+            
+            for i, asset in enumerate(sector_info['assets'][:3], 1):
+                vs_benchmark = asset.absolute_momentum_6m - benchmark_momentum
+                status = "🟢 IN" if self.current_portfolio.get(asset.symbol, {}).get('status') == 'IN' else "⚪ OUT"
+                
+                message += f"{i}️⃣ {asset.symbol}: {asset.combined_momentum:+.1f}% | vs бенч: {vs_benchmark:+.1f}% | {asset.current_price:.2f}₽ {status}\n"
+                message += f"   12M: {asset.momentum_12m:+.1f}% | 6M: {asset.absolute_momentum_6m:+.1f}% | 1M: {asset.momentum_1m:+.1f}%\n\n"
+        
+        # Подсчет активных позиций
+        active_count = sum(1 for v in self.current_portfolio.values() if v.get('status') == 'IN')
+        
+        # Находим лучший сектор и самую сильную акцию
+        best_sector = sorted_sectors[0] if sorted_sectors else None
+        best_asset = max(assets, key=lambda x: x.combined_momentum) if assets else None
+        
         message += "═══════════════════════════\n"
-        message += f"📈 Бенчмарк (MCFTR): {benchmark_momentum:+.1f}% (6M)\n"
-        message += "═══════════════════════════\n"
+        message += f"🎯 Активно: {active_count} акций"
+        if best_sector:
+            message += f" | 📈 Лучший сектор: {best_sector['name']} ({best_sector['avg_momentum']:+.1f}%)"
+        if best_asset:
+            message += f"\n⚡ Самый сильный моментум: {best_asset.symbol} ({best_asset.combined_momentum:+.1f}%)"
+        message += "\n═══════════════════════════\n\n"
         
-        sorted_sectors = sorted(
-            self.sector_performance.items(),
-            key=lambda x: x[1].performance_score if x[1] else 0,
-            reverse=True
-        )
+        # Топ активов по секторам (топ-10)
+        message += "🏆 ТОП АКТИВОВ ПО СЕКТОРАМ:\n\n"
         
-        for sector_name, performance in sorted_sectors:
-            if performance and performance.selected_stocks:
-                atr_info = f"📊 Средний ATR: {performance.avg_atr_percent:.1f}%\n" if performance.avg_atr_percent > 0 else ""
-                
-                message += (
-                    f"🏢 *{sector_name}*\n"
-                    f"📊 Средний комбинированный моментум: **{performance.avg_combined_momentum:+.1f}%**\n"
-                    f"📈 Средний 6M моментум: {performance.avg_absolute_momentum_6m:+.1f}%\n"
-                    f"{atr_info}"
-                    f"🎯 Сравнение с бенчмарком: {performance.vs_benchmark:+.1f}%\n"
-                    f"🔢 Акций отобрано: {len(performance.selected_stocks)}/{performance.total_stocks}\n"
-                    f"🏆 Топ акции сектора:\n"
-                )
-                
-                for i, asset in enumerate(performance.selected_stocks[:3], 1):
-                    atr_asset = f", ATR: {asset.atr/asset.current_price*100:.1f}%" if asset.atr > 0 else ""
-                    message += f"  {i}. {asset.symbol}: {asset.combined_momentum:+.1f}%{atr_asset}\n"
-                
-                message += f"──\n"
+        # Сортируем все активы по комбинированному моментуму
+        top_assets = sorted(assets, key=lambda x: x.combined_momentum, reverse=True)[:10]
         
-        total_selected = sum(len(p.selected_stocks) for p in self.sector_performance.values() if p)
-        total_analyzed = sum(p.analyzed_stocks for p in self.sector_performance.values() if p)
-        
-        message += f"═══════════════════════════\n"
-        message += f"📈 Всего отобрано акций: {total_selected}\n"
-        message += f"📊 Всего проанализировано: {total_analyzed}\n"
+        for i, asset in enumerate(top_assets, 1):
+            vs_benchmark = asset.absolute_momentum_6m - benchmark_momentum
+            atr_percent = (asset.atr / asset.current_price * 100) if asset.atr > 0 and asset.current_price > 0 else 0.0
+            
+            message += f"{i}. {asset.symbol} ({asset.sector}): {asset.combined_momentum:+.2f}%\n"
+            message += f"   12M: {asset.momentum_12m:+.1f}% | 6M: {asset.absolute_momentum_6m:+.1f}%"
+            
+            # Добавляем 1M моментум только если он значительный
+            if abs(asset.momentum_1m) > 0.1:
+                message += f" | 1M: {asset.momentum_1m:+.1f}%"
+            
+            message += f" | vs бенчмарк: {vs_benchmark:+.1f}%\n"
+            
+            # Добавляем ATR если есть
+            if atr_percent > 0:
+                message += f"   ATR: {atr_percent:.1f}%\n"
+            
+            message += "\n"
         
         return message
     
@@ -1673,8 +1786,72 @@ class MomentumBotMOEX:
         
         return message
     
-    def run_strategy_cycle(self) -> bool:
-        """Запуск цикла стратегии"""
+    def get_next_scheduled_time(self, target_times: List[str]) -> datetime:
+        """
+        Получение следующего запланированного времени для проверки
+        target_times: список строк времени в формате "HH:MM" (GMT+3)
+        """
+        now = datetime.now()
+        next_times = []
+        
+        for time_str in target_times:
+            target_time = datetime.strptime(time_str, "%H:%M")
+            # Создаем datetime на сегодня с указанным временем
+            candidate = datetime(now.year, now.month, now.day, 
+                               target_time.hour, target_time.minute)
+            
+            # Если время уже прошло сегодня, переносим на завтра
+            if candidate < now:
+                candidate += timedelta(days=1)
+            
+            next_times.append(candidate)
+        
+        # Возвращаем ближайшее время
+        return min(next_times)
+    
+    def should_run_check_now(self) -> bool:
+        """
+        Проверка, нужно ли запускать проверку сейчас
+        по расписанию 14:10 и 19:10 GMT+3
+        """
+        now = datetime.now()
+        current_time_str = now.strftime("%H:%M")
+        
+        # Допуск ±5 минут для запуска
+        for check_time in self.check_times:
+            check_dt = datetime.strptime(check_time, "%H:%M")
+            current_dt = datetime.strptime(current_time_str, "%H:%M")
+            
+            # Разница в минутах
+            diff_minutes = abs((current_dt - check_dt).total_seconds() / 60)
+            
+            if diff_minutes <= 5:  # В пределах 5 минут от запланированного времени
+                return True
+        
+        return False
+    
+    def should_send_report_now(self) -> bool:
+        """
+        Проверка, нужно ли отправлять отчет сейчас
+        по расписанию 19:30 GMT+3
+        """
+        now = datetime.now()
+        current_time_str = now.strftime("%H:%M")
+        report_time = self.report_time
+        
+        # Допуск ±5 минут для отправки
+        report_dt = datetime.strptime(report_time, "%H:%M")
+        current_dt = datetime.strptime(current_time_str, "%H:%M")
+        
+        # Разница в минутах
+        diff_minutes = abs((current_dt - report_dt).total_seconds() / 60)
+        
+        return diff_minutes <= 5  # В пределах 5 минут от запланированного времени
+    
+    def run_strategy_cycle(self, send_report: bool = False) -> bool:
+        """Запуск цикла стратегии
+        send_report: отправлять ли объединенный отчет
+        """
         try:
             logger.info("🔄 Запуск цикла стратегии...")
             
@@ -1687,7 +1864,7 @@ class MomentumBotMOEX:
             if not assets:
                 logger.warning("❌ Нет активов для анализа")
                 
-                if self.should_send_notification():
+                if self.should_send_notification() or send_report:
                     benchmark_data = self.get_benchmark_data()
                     no_assets_msg = (
                         "📊 *Анализ Мосбиржи*\n"
@@ -1705,7 +1882,7 @@ class MomentumBotMOEX:
                     
                     self.send_telegram_message(no_assets_msg, force=True)
                 
-                if self.should_send_notification():
+                if self.should_send_notification() or send_report:
                     active_positions = self.format_active_positions()
                     if "АКТИВНЫХ ПОЗИЦИЙ НЕТ" not in active_positions:
                         self.send_telegram_message(active_positions, force=True)
@@ -1722,12 +1899,11 @@ class MomentumBotMOEX:
                     self.signal_history.append(signal)
                     logger.info(f"✅ Сигнал отправлен: {signal['symbol']} {signal['action']}")
             
-            if self.should_send_notification():
-                ranking_message = self.format_ranking_message(assets)
-                self.send_telegram_message(ranking_message, force=True)
-                
-                sector_performance_msg = self.format_sector_performance()
-                self.send_telegram_message(sector_performance_msg, force=True)
+            # Отправляем объединенный отчет если нужно
+            if send_report and self.should_send_report_now():
+                combined_report = self.format_combined_report(assets)
+                self.send_telegram_message(combined_report)
+                logger.info("📊 Объединенный отчет отправлен")
             
             logger.info(f"✅ Цикл завершен. Сигналов: {len(signals)}")
             return True
@@ -1756,7 +1932,7 @@ class MomentumBotMOEX:
                 'last_update': datetime.now().isoformat(),
                 'last_notification_time': self.last_notification_time.isoformat() if self.last_notification_time else None,
                 'errors_count': self.errors_count,
-                'version': 'moex_bot_v6_sector_selection_atr',
+                'version': 'moex_bot_v7_sector_selection_atr_scheduled',
                 'risk_params': {
                     'atr_period': self.atr_period,
                     'atr_multiplier': self.atr_multiplier,
@@ -1773,9 +1949,10 @@ class MomentumBotMOEX:
             logger.error(f"Ошибка сохранения: {e}")
     
     def run(self):
-        """Основной цикл работы бота"""
+        """Основной цикл работы бота с расписанием"""
         logger.info("=" * 60)
         logger.info("🚀 ЗАПУСК MOMENTUM BOT ДЛЯ МОСБИРЖИ (Секторный отбор + ATR стоп-лосс)")
+        logger.info(f"🕐 Расписание: проверки в {self.check_times[0]} и {self.check_times[1]}, отчет в {self.report_time} (GMT+3)")
         logger.info("=" * 60)
         
         self.load_state()
@@ -1815,9 +1992,9 @@ class MomentumBotMOEX:
                 f"⚙️ Фильтры: 12M > {self.min_12m_momentum}%, SMA положительный\n"
                 f"⚠️ Управление рисками: ATR({self.atr_period}) стоп-лосс x{self.atr_multiplier}\n"
                 f"📡 Источник данных: {'apimoex' if HAS_APIMOEX else 'MOEX API'}\n"
-                f"⏰ Проверка: каждые {self.check_interval//3600} часа\n"
-                f"⏰ Оповещение: 1 раз в 24 часа\n"
-                f"⚡ Версия: секторный отбор с ATR стоп-лоссом"
+                f"🕐 Расписание: проверки в {self.check_times[0]} и {self.check_times[1]}, отчет в {self.report_time} (GMT+3)\n"
+                f"⏱️ Задержка между запросами: {self.analysis_request_delay} сек\n"
+                f"⚡ Версия: секторный отбор с расписанием"
             )
             self.send_telegram_message(welcome_msg, force=True)
             
@@ -1841,17 +2018,32 @@ class MomentumBotMOEX:
             while True:
                 iteration += 1
                 current_time = datetime.now().strftime('%H:%M:%S %d.%m.%Y')
-                logger.info(f"🔄 Цикл #{iteration} - {current_time}")
+                logger.info(f"🔄 Итерация #{iteration} - {current_time}")
                 
-                success = self.run_strategy_cycle()
+                # Проверяем расписание
+                send_report = self.should_send_report_now()
+                should_check = self.should_run_check_now()
                 
-                if success:
-                    logger.info(f"✅ Цикл #{iteration} успешно завершен")
+                if should_check or send_report:
+                    logger.info(f"⏰ Время для {'проверки и отчета' if send_report else 'проверки'}")
+                    success = self.run_strategy_cycle(send_report=send_report)
                     
-                    if iteration % 3 == 0:
-                        self.save_state()
+                    if success:
+                        logger.info(f"✅ Итерация #{iteration} успешно завершена")
+                        
+                        if iteration % 3 == 0:
+                            self.save_state()
+                    else:
+                        logger.warning(f"⚠️ Итерация #{iteration} завершена с проблемами")
                 else:
-                    logger.warning(f"⚠️ Цикл #{iteration} завершен с проблемами")
+                    # Вычисляем время до следующей проверки
+                    next_check_time = self.get_next_scheduled_time(self.check_times)
+                    wait_seconds = (next_check_time - datetime.now()).total_seconds()
+                    
+                    if wait_seconds > 0:
+                        logger.info(f"⏳ До следующей проверки в {next_check_time.strftime('%H:%M')}: {wait_seconds/60:.1f} минут")
+                        time.sleep(min(wait_seconds, 300))  # Спим не больше 5 минут
+                        continue
                 
                 if self.errors_count > 5:
                     logger.error(f"⚠️ Много ошибок ({self.errors_count}). Пауза 1 час...")
@@ -1860,8 +2052,8 @@ class MomentumBotMOEX:
                     time.sleep(3600)
                     self.errors_count = 0
                 
-                logger.info(f"⏳ Следующая проверка через {self.check_interval//3600} часа(ов)...")
-                time.sleep(self.check_interval)
+                # Небольшая пауза между итерациями
+                time.sleep(60)
                 
         except KeyboardInterrupt:
             logger.info("🛑 Остановка по команде пользователя")

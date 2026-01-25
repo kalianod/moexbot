@@ -1,26 +1,29 @@
 {
   "states": {
     "IMOEX": {
-      "current_signal": "Сигнал не сформировался",
+      "current_signal": "НЕТ СИГНАЛА",
       "last_price": 2777.29,
-      "last_update": "2026-01-23T16:10:11.231583",
+      "last_update": "2026-01-24T16:10:43.506316",
       "signal_count": 0,
-      "last_signal_time": null
+      "last_signal_time": null,
+      "position": null
     },
     "MCFTR": {
-      "current_signal": "Сигнал не сформировался",
-      "last_price": 7447.8,
-      "last_update": "2026-01-23T16:10:11.282958",
+      "current_signal": "НЕТ СИГНАЛА",
+      "last_price": 7472.74,
+      "last_update": "2026-01-24T16:10:43.516952",
       "signal_count": 0,
-      "last_signal_time": null
+      "last_signal_time": null,
+      "position": null
     },
     "CNYRUB_TOM": {
-      "current_signal": "Закрываем хэдж",
+      "current_signal": "ЗАКРЫТЬ ХЕДЖ",
       "last_price": 10.855,
-      "last_update": "2026-01-23T16:10:11.299884",
-      "signal_count": 0,
-      "last_signal_time": null
+      "last_update": "2026-01-24T16:10:43.527786",
+      "signal_count": 1,
+      "last_signal_time": "2026-01-24T16:10:43.527782",
+      "position": "hedge_closed"
     },
     "GLDRUB_TOM": {
-      "current_signal": "Открываем хэдж",
+      "current_signal": "ОТКРЫТЬ ХЕДЖ",
       "last_price": 
