@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import asyncio
 import logging
 import pandas as pd
@@ -15,17 +16,21 @@ import pytz
 from typing import Dict, List, Optional, Tuple, Any
 import hashlib
 from pathlib import Path
+import sys
 
 # Загрузка переменных окружения
 load_dotenv()
-
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+
+# Проверка обязательных переменных
+if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+    print("❌ КРИТИЧЕСКАЯ ОШИБКА: Не заданы TELEGRAM_TOKEN или TELEGRAM_CHAT_ID в .env файле")
+    sys.exit(1)
 
 # Настройка расширенного логирования
 LOG_DIR = Path("logs")
 LOG_DIR.mkdir(exist_ok=True)
-
 log_file = LOG_DIR / f"index_bot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
 logging.basicConfig(
@@ -36,6 +41,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
 logger = logging.getLogger(__name__)
 
 # Дополнительный логгер для детальных данных
@@ -80,6 +86,7 @@ INDEX_CONFIG = {
     }
 }
 
+
 class DataCache:
     """Класс для кэширования данных с сохранением в JSON"""
     
@@ -88,7 +95,7 @@ class DataCache:
         self.cache = {}
         self.timestamps = {}
         self.load_cache()
-        
+    
     def load_cache(self):
         """Загрузить кэш из файла JSON"""
         try:
@@ -114,12 +121,20 @@ class DataCache:
                 logger.info("Файл кэша не найден, будет создан новый")
         except json.JSONDecodeError as e:
             logger.error(f"❌ Ошибка парсинга JSON в файле кэша: {e}")
+            # FIX: Автоматический бэкап битого файла кэша
+            try:
+                backup_file = self.cache_file.with_suffix('.bak')
+                self.cache_file.replace(backup_file)
+                logger.warning(f"⚠️ Битый кэш перемещен в {backup_file}")
+            except Exception as mv_err:
+                logger.error(f"Не удалось переместить битый файл: {mv_err}")
+            
             logger.info("Создаем новый кэш")
             self.cache = {}
         except Exception as e:
             logger.error(f"❌ Ошибка загрузки кэша: {e}")
             self.cache = {}
-            
+    
     def save_cache(self):
         """Сохранить кэш в файл JSON"""
         try:
@@ -138,11 +153,10 @@ class DataCache:
             
             with open(self.cache_file, 'w', encoding='utf-8') as f:
                 json.dump(cache_data, f, ensure_ascii=False, indent=2)
-            
             logger.info(f"✅ Кэш сохранен в {self.cache_file}, {len(cache_data)} записей")
         except Exception as e:
             logger.error(f"❌ Ошибка сохранения кэша: {e}")
-            
+    
     def get(self, key: str) -> Optional[pd.DataFrame]:
         """Получить данные из кэша"""
         if key in self.cache:
@@ -150,11 +164,12 @@ class DataCache:
             index_key = key.split('_')[0]
             ttl = INDEX_CONFIG.get(index_key, {}).get('cache_ttl', 300)
             
-            if (datetime.now() - timestamp).seconds < ttl:
+            if (datetime.now() - timestamp).total_seconds() < ttl:
                 logger.debug(f"Кэш HIT для {key}")
                 return data
             else:
                 logger.debug(f"Кэш EXPIRED для {key}")
+                return None
         return None
     
     def set(self, key: str, data: pd.DataFrame):
@@ -166,6 +181,7 @@ class DataCache:
         except Exception as e:
             logger.error(f"❌ Ошибка при кэшировании данных: {e}")
 
+
 class SignalHistory:
     """Класс для хранения истории сигналов"""
     
@@ -175,7 +191,7 @@ class SignalHistory:
         self.history = {}
         self.performance = {}
         self.load_history()
-        
+    
     def load_history(self):
         """Загрузить историю из файла JSON"""
         try:
@@ -189,6 +205,14 @@ class SignalHistory:
                 logger.info("Файл истории не найден, будет создан новый")
         except json.JSONDecodeError as e:
             logger.error(f"❌ Ошибка парсинга JSON в файле истории: {e}")
+            # FIX: Автоматический бэкап битого файла истории
+            try:
+                backup_file = self.history_file.with_suffix('.bak')
+                self.history_file.replace(backup_file)
+                logger.warning(f"⚠️ Битая история перемещена в {backup_file}")
+            except Exception as mv_err:
+                logger.error(f"Не удалось переместить битый файл: {mv_err}")
+                
             logger.info("Создаем новую историю")
             self.history = {}
             self.performance = {}
@@ -196,7 +220,7 @@ class SignalHistory:
             logger.error(f"❌ Ошибка загрузки истории: {e}")
             self.history = {}
             self.performance = {}
-            
+    
     def save_history(self):
         """Сохранить историю в файл JSON"""
         try:
@@ -205,22 +229,20 @@ class SignalHistory:
                 'performance': self.performance,
                 'last_update': datetime.now().isoformat()
             }
-            
             with open(self.history_file, 'w', encoding='utf-8') as f:
                 json.dump(history_data, f, ensure_ascii=False, indent=2, default=str)
-            
             logger.info(f"✅ История сохранена в {self.history_file}")
         except Exception as e:
             logger.error(f"❌ Ошибка сохранения истории: {e}")
-            
+    
     def add_signal(self, index: str, signal: str, price: float, timestamp: datetime = None):
         """Добавить сигнал в историю"""
         if timestamp is None:
             timestamp = datetime.now()
-            
+        
         if index not in self.history:
             self.history[index] = []
-            
+        
         signal_record = {
             'timestamp': timestamp.isoformat(),
             'signal': signal,
@@ -233,10 +255,10 @@ class SignalHistory:
         
         if len(self.history[index]) > self.max_history:
             self.history[index] = self.history[index][-self.max_history:]
-            
+        
         logger.debug(f"Сигнал добавлен в историю: {index} - {signal} по {price}")
         self.save_history()
-        
+    
     def get_recent_signals(self, index: str, limit: int = 5) -> List[Dict]:
         """Получить последние сигналы для индекса"""
         if index in self.history:
@@ -254,6 +276,7 @@ class SignalHistory:
             return [s for s in self.history[index] if s['date'] == today]
         return []
 
+
 class MoexIndexAPI:
     """Класс для получения данных индексов MOEX"""
     
@@ -261,14 +284,14 @@ class MoexIndexAPI:
         self.base_url = "https://iss.moex.com/iss"
         self.session = requests.Session()
         self.cache = DataCache()
-        
+    
     def get_index_candles_simple(self, index: str = 'IMOEX', days: int = 10):
         """Упрощенный метод получения свечных данных"""
         cache_key = f"{index}_candles_{days}"
         cached_data = self.cache.get(cache_key)
         if cached_data is not None:
             return cached_data
-            
+        
         try:
             if index in ['IMOEX', 'MCFTR']:
                 url = f"{self.base_url}/engines/stock/markets/index/boards/SNDX/securities/{index}/candles.json"
@@ -279,7 +302,6 @@ class MoexIndexAPI:
                 return None
             
             start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
-            
             params = {
                 'from': start_date,
                 'till': datetime.now().strftime('%Y-%m-%d'),
@@ -288,29 +310,26 @@ class MoexIndexAPI:
             }
             
             response = self.session.get(url, params=params, timeout=30)
+            
             if response.status_code == 200:
                 data = response.json()
-                
                 if 'candles' in data and 'data' in data['candles']:
                     candles_data = data['candles']['data']
-                    
                     if candles_data:
                         df = pd.DataFrame(candles_data, columns=[
                             'open', 'close', 'high', 'low', 'value', 'volume', 'begin', 'end'
                         ])
-                        
                         df['date'] = pd.to_datetime(df['begin'])
                         df.set_index('date', inplace=True)
                         df = df.sort_index()
                         
                         self.cache.set(cache_key, df)
-                        
                         logger.info(f"✅ Получено {len(df)} свечей для {index}")
                         return df
-                    
+            
             logger.warning(f"⚠️ Нет данных для {index}")
             return None
-                
+        
         except Exception as e:
             logger.error(f"❌ Ошибка получения данных {index}: {e}")
             return None
@@ -325,20 +344,43 @@ class MoexIndexAPI:
             else:
                 logger.error(f"❌ Неизвестный индекс: {index}")
                 return None
-                
-            params = {'iss.meta': 'off'}
             
+            params = {'iss.meta': 'off'}
             response = self.session.get(url, params=params, timeout=30)
+            
             if response.status_code == 200:
                 data = response.json()
-                
                 if 'marketdata' in data and 'data' in data['marketdata']:
                     marketdata = data['marketdata']['data']
                     if marketdata:
+                        columns = data['marketdata']['columns']
+                        
                         if index in ['CNYRUB_TOM', 'GLDRUB_TOM']:
-                            current_value = marketdata[0][12]
+                            try:
+                                if 'LAST' in columns:
+                                    price_index = columns.index('LAST')
+                                elif 'CURRENTVALUE' in columns:
+                                    price_index = columns.index('CURRENTVALUE')
+                                else:
+                                    price_index = 12
+                                    logger.warning(f"⚠️ Не найдена колонка LAST/CURRENTVALUE для {index}, используем индекс 12")
+                                current_value = marketdata[0][price_index]
+                            except (IndexError, ValueError) as e:
+                                logger.error(f"❌ Ошибка доступа к колонке цены для {index}: {e}")
+                                return None
                         else:
-                            current_value = marketdata[0][2]
+                            try:
+                                if 'CURRENTVALUE' in columns:
+                                    price_index = columns.index('CURRENTVALUE')
+                                elif 'LAST' in columns:
+                                    price_index = columns.index('LAST')
+                                else:
+                                    price_index = 2
+                                    logger.warning(f"⚠️ Не найдена колонка CURRENTVALUE/LAST для {index}, используем индекс 2")
+                                current_value = marketdata[0][price_index]
+                            except (IndexError, ValueError) as e:
+                                logger.error(f"❌ Ошибка доступа к колонке цены для {index}: {e}")
+                                return None
                         
                         logger.info(f"✅ Текущее значение {index}: {current_value}")
                         return current_value
@@ -348,7 +390,7 @@ class MoexIndexAPI:
             else:
                 logger.error(f"❌ HTTP ошибка {response.status_code} для {index}")
                 return None
-                
+        
         except Exception as e:
             logger.error(f"❌ Ошибка получения текущего значения {index}: {e}")
             return None
@@ -363,11 +405,11 @@ class MoexIndexAPI:
         logger.error(error_msg)
         return None
 
+
 class FinalIndexBot:
     def __init__(self, telegram_token, chat_id):
         self.telegram_token = telegram_token
         self.chat_id = chat_id
-        
         logger.info("🚀 Инициализация FinalIndexBot")
         
         self.indexes = ['IMOEX', 'MCFTR', 'CNYRUB_TOM', 'GLDRUB_TOM']
@@ -382,7 +424,7 @@ class FinalIndexBot:
                 'last_update': None,
                 'signal_count': 0,
                 'last_signal_time': None,
-                'position': None  # 'hedge_open' или 'hedge_closed' или None
+                'position': None
             } for index in self.indexes
         }
         
@@ -402,7 +444,6 @@ class FinalIndexBot:
         }
         
         self.load_states()
-        
         logger.info("✅ FinalIndexBot инициализирован")
     
     def load_states(self):
@@ -413,12 +454,10 @@ class FinalIndexBot:
                 with open(states_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     
-                    # Проверяем структуру данных
                     if 'states' in data and 'global_stats' in data:
                         for index in self.indexes:
                             if index in data['states']:
                                 self.states[index] = data['states'][index]
-                                # Конвертируем строки в datetime
                                 for time_key in ['last_update', 'last_signal_time']:
                                     if self.states[index][time_key] and isinstance(self.states[index][time_key], str):
                                         self.states[index][time_key] = datetime.fromisoformat(self.states[index][time_key])
@@ -435,6 +474,15 @@ class FinalIndexBot:
                 logger.info("Файл состояний не найден, будут созданы новые")
         except json.JSONDecodeError as e:
             logger.error(f"❌ Ошибка парсинга JSON в файле состояний: {e}")
+            # FIX: Автоматический бэкап битого файла состояний
+            try:
+                states_file = Path("bot_states.json") # Ensure path is available
+                backup_file = states_file.with_suffix('.bak')
+                states_file.replace(backup_file)
+                logger.warning(f"⚠️ Битая конфигурация перемещена в {backup_file}")
+            except Exception as mv_err:
+                logger.error(f"Не удалось переместить битый файл: {mv_err}")
+            
             logger.info("Создаем новые состояния")
         except Exception as e:
             logger.error(f"❌ Ошибка загрузки состояний: {e}")
@@ -444,6 +492,7 @@ class FinalIndexBot:
         try:
             states_file = Path("bot_states.json")
             states_to_save = {}
+            
             for index, state in self.states.items():
                 states_to_save[index] = state.copy()
                 for time_key in ['last_update', 'last_signal_time']:
@@ -463,7 +512,6 @@ class FinalIndexBot:
             
             with open(states_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            
             logger.debug("Состояния бота сохранены")
         except Exception as e:
             logger.error(f"❌ Ошибка сохранения состояний: {e}")
@@ -487,7 +535,7 @@ class FinalIndexBot:
         if df is None or len(df) < 2:
             logger.warning(f"⚠️ Недостаточно данных для {index}")
             return "Данные не получены", None, None, None
-            
+        
         current_candle = df.iloc[-1]
         prev_candle = df.iloc[-2]
         
@@ -507,7 +555,6 @@ class FinalIndexBot:
         action = None  # 'open' или 'close' или 'hold'
         
         if logic_type == 'standard':
-            # Стандартная логика (IMOEX, MCFTR)
             buy_threshold = prev_high * (1 + threshold)
             sell_threshold = prev_low * (1 - threshold)
             
@@ -519,9 +566,8 @@ class FinalIndexBot:
                 signal = "ОТКРЫТЬ ХЕДЖ"
                 action = 'open'
                 logger.info(f"🎯 {index}: ОТКРЫТЬ ХЕДЖ: {current_close:.2f} < {sell_threshold:.2f}")
-                
+        
         elif logic_type == 'inverse':
-            # Обратная логика (CNYRUB_TOM, GLDRUB_TOM)
             buy_threshold = prev_low * (1 + threshold)
             sell_threshold = prev_high * (1 - threshold)
             
@@ -545,7 +591,7 @@ class FinalIndexBot:
         """Проверка критического движения цены"""
         if prev_price is None or prev_price == 0:
             return False, ""
-            
+        
         change_percent = abs((current_price - prev_price) / prev_price)
         change_abs = abs(current_price - prev_price)
         
@@ -573,12 +619,24 @@ class FinalIndexBot:
         """Форматирование таблицы сигналов"""
         # Определяем максимальные длины
         max_name_len = max(len(data['name']) for data in signals_data)
-        max_name_len = min(max_name_len, 25)
+        max_name_len = min(max_name_len, 20) # Ограничиваем имя для мобильных
         
         table_lines = []
-        table_lines.append("════════ СИГНАЛЫ ИНДЕКСОВ ════════")
-        table_lines.append(f"{'ИНДЕКС':<{max_name_len}} {'ЗНАЧЕНИЕ':>10} {'СИГНАЛ':>12} {'ИЗМЕНЕНИЕ':>10}")
-        table_lines.append("─" * (max_name_len + 10 + 12 + 10 + 3))
+        
+        # Заголовок вне блока кода (чтобы был жирным)
+        table_lines.append("*════ СИГНАЛЫ ИНДЕКСОВ ════*")
+        
+        # Начало блока кода для моноширинности
+        table_lines.append("```")
+        
+        # Шапка таблицы
+        # Используем сокращения для экономии места на мобильных
+        # Name | Price | Signal | %
+        header = f"{'ИНДЕКС':<{max_name_len}} {'ЦЕНА':>8} {'СИГНАЛ':>9} {'%':>5}"
+        table_lines.append(header)
+        
+        # Разделитель строго по длине шапки
+        table_lines.append("─" * len(header))
         
         for data in signals_data:
             name = data['name']
@@ -587,29 +645,30 @@ class FinalIndexBot:
             change = data['change']
             
             if len(name) > max_name_len:
-                display_name = name[:max_name_len-3] + "..."
+                display_name = name[:max_name_len-2] + ".."
             else:
                 display_name = name
             
-            # Форматируем сигнал
+            # Форматируем сигнал (текст должен быть коротким для таблицы)
             if "ОТКРЫТЬ" in signal:
-                signal_display = "🟢 ОТКР. ХЕДЖ"
+                signal_display = "ОТКР"
             elif "ЗАКРЫТЬ" in signal:
-                signal_display = "🔴 ЗАКР. ХЕДЖ"
+                signal_display = "ЗАКР"
             else:
-                signal_display = "⚪ НЕТ СИГ"
+                signal_display = "НЕТ"
             
             # Форматируем изменение
-            change_display = f"{change:+.1f}%"
+            change_display = f"{change:+.1f}"
             
-            line = f"{display_name:<{max_name_len}} {price:>10.2f} {signal_display:>12} {change_display:>10}"
+            # Форматируем строку: Имя (влево), Цена (вправо), Сигнал (вправо), Изм (вправо)
+            line = f"{display_name:<{max_name_len}} {price:>8.2f} {signal_display:>9} {change_display:>5}"
             table_lines.append(line)
         
-        table_lines.append("═══════════════════════════════════")
+        table_lines.append("```") # Конец блока кода
         
         # Подсчет активных сигналов
         active_signals = sum(1 for d in signals_data if "ХЕДЖ" in d['signal'])
-        table_lines.append(f"Сводка: {active_signals} сигнала из {len(signals_data)} индексов")
+        table_lines.append(f"Сводка: {active_signals} активных из {len(signals_data)}")
         table_lines.append(f"Время: {datetime.now(MOSCOW_TZ).strftime('%H:%M, %d.%m.%Y')}")
         
         return "\n".join(table_lines)
@@ -624,59 +683,66 @@ class FinalIndexBot:
         if open_actions:
             rec_text = "🟢 *ОТКРЫТЬ ХЕДЖ:*\n"
             for data in open_actions:
-                rec_text += f"  • {data['name']} - {data['price']:.2f} ({data['change']:+.1f}%)\n"
+                rec_text += f" • {data['name']} - {data['price']:.2f} ({data['change']:+.1f}%)\n"
             recommendations.append(rec_text)
         
         if close_actions:
             rec_text = "🔴 *ЗАКРЫТЬ ХЕДЖ:*\n"
             for data in close_actions:
-                rec_text += f"  • {data['name']} - {data['price']:.2f} ({data['change']:+.1f}%)\n"
+                rec_text += f" • {data['name']} - {data['price']:.2f} ({data['change']:+.1f}%)\n"
             recommendations.append(rec_text)
         
         if not open_actions and not close_actions:
-            recommendations.append("⚪ *СЕГОДНЯ НОВЫХ СИГНАЛОВ НЕТ*\n  Держите текущие позиции")
+            recommendations.append("⚪ *СЕГОДНЯ НОВЫХ СИГНАЛОВ НЕТ*\n Держите текущие позиции")
         
         return "\n".join(recommendations)
     
     def format_history_block(self, index: str) -> str:
         """Форматирование блока истории для индекса"""
         history_records = self.history.get_today_signals(index)
-        
         if not history_records:
             return ""
         
         history_lines = []
         index_name = INDEX_CONFIG.get(index, {}).get('name', index)
         
-        if len(index_name) > 20:
-            display_name = index_name[:17] + "..."
-        else:
-            display_name = index_name
+        # FIX: Улучшенный визуальный стиль для истории (Code block)
+        history_lines.append("```")
         
-        history_lines.append(f"┌─────────────────────────────────────┐")
-        history_lines.append(f"│    ИСТОРИЯ СИГНАЛОВ СЕГОДНЯ        │")
-        history_lines.append(f"│         {display_name:<20}        │")
-        history_lines.append(f"├─────────────────────────────────────┤")
+        # Динамическая ширина рамки
+        # Min width 30, Max width based on name
+        content_width = max(len(index_name) + 2, 32)
+        
+        history_lines.append(f"┌{'─' * content_width}┐")
+        history_lines.append(f"│ {index_name.center(content_width-2)} │")
+        history_lines.append(f"├{'─' * content_width}┤")
         
         for record in history_records:
             timestamp = record['timestamp']
             if isinstance(timestamp, str):
                 timestamp = datetime.fromisoformat(timestamp)
-            
             time_str = timestamp.strftime('%H:%M')
             price = record['price']
             signal = record['signal']
             
             if "ОТКРЫТЬ" in signal:
-                signal_icon = "🟢 ОТКР. ХЕДЖ"
+                sig_short = "ОТКРЫТЬ"
             elif "ЗАКРЫТЬ" in signal:
-                signal_icon = "🔴 ЗАКР. ХЕДЖ"
+                sig_short = "ЗАКРЫТЬ"
             else:
-                signal_icon = "⚪ НЕТ СИГ"
+                sig_short = "НЕТ"
             
-            history_lines.append(f"│ {time_str} | {price:8.2f} | {signal_icon:16} │")
+            # Формат строки: 10:00 | 2500.00 | ЗАКРЫТЬ
+            # Вычисляем отступы, чтобы заполнить content_width
+            # Структура: "| TIME | PRICE | SIGNAL |"
+            row_content = f"{time_str} | {price:.2f} | {sig_short}"
+            padding = content_width - len(row_content) - 2 # -2 for borders
+            if padding < 0: padding = 0
+            
+            history_lines.append(f"│ {row_content}{' ' * padding} │")
         
-        history_lines.append(f"└─────────────────────────────────────┘")
+        history_lines.append(f"└{'─' * content_width}┘")
+        history_lines.append("```")
         
         return "\n".join(history_lines)
     
@@ -718,17 +784,16 @@ class FinalIndexBot:
                         self.states[index]['last_signal_time'] = datetime.now()
                         self.global_stats['total_signals'] += 1
                         self.daily_stats['signals_today'] += 1
-                        
-                        # Обновляем позицию
-                        if "ОТКРЫТЬ" in signal:
-                            self.states[index]['position'] = 'hedge_open'
-                        elif "ЗАКРЫТЬ" in signal:
-                            self.states[index]['position'] = 'hedge_closed'
+                    
+                    # Обновляем позицию
+                    if "ОТКРЫТЬ" in signal:
+                        self.states[index]['position'] = 'hedge_open'
+                    elif "ЗАКРЫТЬ" in signal:
+                        self.states[index]['position'] = 'hedge_closed'
                     
                     self.states[index]['current_signal'] = signal
                     self.states[index]['last_price'] = current_price
                     self.states[index]['last_update'] = datetime.now()
-                    
                 else:
                     logger.warning(f"⚠️ {index}: данные не получены")
             
@@ -789,7 +854,7 @@ class FinalIndexBot:
             self.save_states()
             
             logger.info(f"✅ Вечерний отчет отправлен. Сигналов сегодня: {self.daily_stats['signals_today']}")
-            
+        
         except Exception as e:
             error_msg = f"❌ Ошибка при отправке вечернего отчета: {str(e)}"
             logger.error(error_msg)
@@ -834,6 +899,7 @@ class FinalIndexBot:
         except Exception as e:
             logger.error(f"❌ Ошибка при тихой проверке: {e}")
 
+
 def schedule_moscow_time(time_str: str):
     """Конвертирует московское время в локальное для планировщика"""
     try:
@@ -857,12 +923,13 @@ def schedule_moscow_time(time_str: str):
         
         # Конвертируем в локальное время системы
         local_time = scheduled_time_moscow.astimezone()
-        
         return local_time.strftime('%H:%M')
+    
     except Exception as e:
         logger.error(f"❌ Ошибка конвертации времени {time_str}: {e}")
         # Возвращаем время как есть в случае ошибки
         return time_str
+
 
 async def main():
     try:
@@ -883,19 +950,18 @@ async def main():
                 logic_desc = "Закрыть хедж при ↑0.5%, открыть при ↓0.5%"
             else:
                 logic_desc = "Закрыть хедж при ↓0.5%, открыть при ↑0.5%"
-            
             welcome_msg += f"• *{config.get('name', index)}*: {logic_desc}\n"
         
         welcome_msg += (
             f"\n⚙️ *Расписание (МСК):*\n"
-            f"   • 19:10 - вечерний отчет с рекомендациями\n"
-            f"   • 10:10 - тихая проверка (без уведомлений)\n"
-            f"   • 00:10 - сброс статистики\n\n"
+            f" • 19:10 - вечерний отчет с рекомендациями\n"
+            f" • 10:10 - тихая проверка (без уведомлений)\n"
+            f" • 00:10 - сброс статистики\n\n"
             f"🎯 *Что вы получите:*\n"
-            f"   1. Четкие рекомендации: ОТКРЫТЬ или ЗАКРЫТЬ хедж\n"
-            f"   2. Только важные уведомления\n"
-            f"   3. История сегодняшних сигналов\n"
-            f"   4. Статистика за день\n"
+            f" 1. Четкие рекомендации: ОТКРЫТЬ или ЗАКРЫТЬ хедж\n"
+            f" 2. Только важные уведомления\n"
+            f" 3. История сегодняшних сигналов\n"
+            f" 4. Статистика за день\n"
         )
         
         await bot.send_message(welcome_msg)
@@ -929,35 +995,15 @@ async def main():
         logger.info("⏰ Бот запущен по московскому времени")
         logger.info("📅 Расписание (МСК): 10:10 (тихая проверка), 19:10 (вечерний отчет), 00:10 (сброс статистики)")
         
-        # Проверяем, не пора ли выполнить задачи сейчас (если время уже прошло)
-        current_time = datetime.now().strftime('%H:%M')
-        
-        # Если текущее время после времени вечернего отчета, планируем на завтра
-        # Для этого перепланируем задачи, если они уже прошли сегодня
-        def reschedule_if_passed(schedule_time_str, task_func):
-            """Перепланирует задачу на завтра, если время уже прошло"""
-            schedule_hour, schedule_minute = map(int, schedule_time_str.split(':'))
-            current_hour, current_minute = map(int, current_time.split(':'))
-            
-            # Если время задачи уже прошло сегодня
-            if (schedule_hour < current_hour) or (schedule_hour == current_hour and schedule_minute < current_minute):
-                # Отменяем текущую задачу
-                schedule.clear()
-                # Планируем на завтра
-                tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
-                new_time = f"{tomorrow} {schedule_time_str}"
-                logger.info(f"⏰ Задача перенесена на завтра: {new_time}")
-                # Здесь нужно было бы использовать другую логику, так как schedule не поддерживает даты
-                # Пока просто оставим как есть, задачи будут выполнены завтра
-        
         # Основной цикл
         while True:
             schedule.run_pending()
             await asyncio.sleep(60)
-            
+    
     except Exception as e:
         logger.error(f"❌ Критическая ошибка запуска: {e}")
         raise
+
 
 if __name__ == "__main__":
     try:

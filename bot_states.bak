@@ -1,0 +1,29 @@
+{
+  "states": {
+    "IMOEX": {
+      "current_signal": "НЕТ СИГНАЛА",
+      "last_price": 2735.43,
+      "last_update": "2026-02-06T16:10:20.327805",
+      "signal_count": 1,
+      "last_signal_time": "2026-02-05T16:10:35.986377",
+      "position": "hedge_open"
+    },
+    "MCFTR": {
+      "current_signal": "ОТКРЫТЬ ХЕДЖ",
+      "last_price": 7364.68,
+      "last_update": "2026-02-06T16:10:20.346864",
+      "signal_count": 3,
+      "last_signal_time": "2026-02-06T16:10:20.346861",
+      "position": "hedge_open"
+    },
+    "CNYRUB_TOM": {
+      "current_signal": "ОТКРЫТЬ ХЕДЖ",
+      "last_price": 11.142,
+      "last_update": "2026-02-06T16:10:20.358151",
+      "signal_count": 6,
+      "last_signal_time": "2026-02-05T16:10:36.082900",
+      "position": "hedge_open"
+    },
+    "GLDRUB_TOM": {
+      "current_signal": "ОТКРЫТЬ ХЕДЖ",
+      "last_price": 

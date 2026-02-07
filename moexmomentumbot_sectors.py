@@ -203,8 +203,7 @@ class MOEXDataFetcher:
     
     def get_current_price(self, symbol: str) -> Tuple[Optional[float], Optional[float], str]:
         """
-        Получение текущей цены БЕЗ ЗАПРОСА ОБЪЕМА
-        Добавлена задержка и обработка ошибок API
+        Получение текущей цены с fallback на PREVPRICE (для неторгового времени)
         """
         source = 'unknown'
         
@@ -221,6 +220,7 @@ class MOEXDataFetcher:
                         if response.status_code == 200:
                             data = response.json()
                             
+                            # 1. Основной вариант: Marketdata (текущая цена)
                             marketdata = data.get('marketdata', {}).get('data', [])
                             if marketdata:
                                 row = marketdata[0]
@@ -240,15 +240,33 @@ class MOEXDataFetcher:
                                                 return price_float, 0, source
                                         except (ValueError, TypeError) as e:
                                             logger.debug(f"Ошибка преобразования цены {symbol}: {price} -> {e}")
-                                            continue
+
+                            # 2. Запасной вариант: Securities (цена закрытия, если рынок закрыт)
+                            securities = data.get('securities', {}).get('data', [])
+                            sec_cols = data.get('securities', {}).get('columns', [])
+                            if securities:
+                                sec_row = securities[0]
+                                # Проверяем несколько полей цены по очереди
+                                for col_name in ['PREVPRICE', 'PREVADMITTEDQUOTE', 'PREVLEGALCLOSEPRICE', 'CLOSE', 'LCURRENTPRICE']:
+                                    if col_name in sec_cols:
+                                        idx = sec_cols.index(col_name)
+                                        if len(sec_row) > idx and sec_row[idx] is not None:
+                                            try:
+                                                price_float = float(sec_row[idx])
+                                                if price_float > 0:
+                                                    source = f'moex_sec_{board_type}_{col_name}'
+                                                    logger.debug(f"✅ Цена из securities ({col_name}) для {symbol}: {price_float}")
+                                                    return price_float, 0, source
+                                            except (ValueError, TypeError):
+                                                continue
+                                                
                         elif response.status_code == 429:  # Too Many Requests
                             logger.warning(f"⚠️ Rate limit для {symbol}, попытка {attempt+1}/{self.max_retries}")
-                            time.sleep(2 ** attempt)  # Экспоненциальная задержка
+                            time.sleep(2 ** attempt)
                     except Exception as e:
                         logger.debug(f"Endpoint {board_type} для {symbol}: {e}")
                         continue
                 
-                # Задержка между запросами
                 time.sleep(self.request_delay)
                 
             except Exception as e:
@@ -629,9 +647,9 @@ class MomentumBotMOEX:
             logger.error(f"❌ Критическая ошибка получения топ активов: {e}")
             if self.telegram_token and self.telegram_chat_id:
                 self.send_telegram_message(
-                    f"❌ *КРИТИЧЕСКАЯ ОШИБКА*\n"
-                    f"Не удалось получить данные акций:\n"
-                    f"```{str(e)[:100]}```\n"
+                    f"❌ *КРИТИЧЕСКАЯ ОШИБКА*\\n"
+                    f"Не удалось получить данные акций:\\n"
+                    f"```{str(e)[:100]}```\\n"
                     f"Бот остановлен.",
                     silent=False,
                     force=True
@@ -1270,13 +1288,11 @@ class MomentumBotMOEX:
     
     def send_telegram_message(self, message: str, silent: bool = False, force: bool = False) -> bool:
         """
-        Отправка сообщения в Telegram
-        Исправлено: удален force=True для ежесуточных сообщений
+        Отправка сообщения в Telegram с автоматической разбивкой длинных текстов
         """
-        # Для force сообщений (сигналы, ошибки) отправляем всегда
+        # Проверка лимита частоты отправки
         if force:
             logger.debug(f"📨 Принудительная отправка сообщения (force=True)")
-        # Для не-force сообщений проверяем лимит 24 часа
         elif not force and not self.should_send_notification() and not silent:
             logger.debug(f"⏰ Пропускаем оповещение (прошло менее 24 часов)")
             return False
@@ -1285,41 +1301,83 @@ class MomentumBotMOEX:
             if not silent:
                 logger.warning("⚠️ Нет данных для Telegram")
             return False
+
+        # === ЛОГИКА РАЗБИВКИ СООБЩЕНИЙ (Telegram limit ~4096 chars) ===
+        messages_to_send = []
+        max_len = 4000  # Берем с запасом
         
-        for attempt in range(self.max_telegram_retries):
-            try:
-                url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
-                data = {
-                    "chat_id": self.telegram_chat_id,
-                    "text": message,
-                    "parse_mode": "Markdown",
-                    "disable_web_page_preview": True,
-                    "disable_notification": silent
-                }
+        if len(message) > max_len:
+            logger.info(f"📨 Сообщение длинное ({len(message)} симв.), разбиваем на части...")
+            temp_msg = message
+            while temp_msg:
+                if len(temp_msg) <= max_len:
+                    messages_to_send.append(temp_msg)
+                    break
                 
-                response = requests.post(url, data=data, timeout=10)
+                # Ищем перенос строки для красивой разбивки
+                split_pos = temp_msg.rfind('\n', 0, max_len)
+                if split_pos == -1:
+                    split_pos = max_len
                 
-                if response.status_code == 200:
-                    if not silent:
-                        self.last_notification_time = datetime.now()
-                        logger.debug("✅ Сообщение отправлено в Telegram")
-                    return True
-                else:
-                    error_msg = f"Ошибка Telegram (попытка {attempt+1}): {response.status_code}"
-                    if not silent:
-                        logger.warning(error_msg)
-                    
-            except Exception as e:
-                error_msg = f"Ошибка отправки Telegram (попытка {attempt+1}): {e}"
-                if not silent:
-                    logger.warning(error_msg)
+                chunk = temp_msg[:split_pos]
+                messages_to_send.append(chunk)
+                temp_msg = temp_msg[split_pos:]
+        else:
+            messages_to_send = [message]
+
+        # === ОТПРАВКА ЧАСТЕЙ ===
+        all_success = True
+        
+        for i, msg_chunk in enumerate(messages_to_send):
+            chunk_success = False
             
-            if attempt < self.max_telegram_retries - 1:
-                time.sleep(self.telegram_retry_delay)
-        
-        if not silent:
-            logger.error("❌ Не удалось отправить сообщение в Telegram после всех попыток")
-        return False
+            # Если частей много, добавляем паузу между ними
+            if i > 0:
+                time.sleep(0.5)
+
+            for attempt in range(self.max_telegram_retries):
+                try:
+                    url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
+                    data = {
+                        "chat_id": self.telegram_chat_id,
+                        "text": msg_chunk,
+                        "parse_mode": "Markdown",
+                        "disable_web_page_preview": True,
+                        "disable_notification": silent
+                    }
+                    
+                    response = requests.post(url, data=data, timeout=10)
+                    
+                    if response.status_code == 200:
+                        if not silent:
+                            self.last_notification_time = datetime.now()
+                        chunk_success = True
+                        break # Успех, выходим из цикла попыток
+                        
+                    elif response.status_code == 400 and data.get('parse_mode'):
+                        # Если ошибка форматирования, пробуем без Markdown
+                        logger.warning(f"⚠️ Ошибка Telegram 400 (Part {i+1}). Пробуем без Markdown.")
+                        data.pop('parse_mode')
+                        response = requests.post(url, data=data, timeout=10)
+                        if response.status_code == 200:
+                            chunk_success = True
+                            break
+                    else:
+                        if not silent:
+                            logger.warning(f"Ошибка Telegram (попытка {attempt+1}): {response.status_code}")
+                        
+                except Exception as e:
+                    if not silent:
+                        logger.warning(f"Ошибка отправки Telegram (попытка {attempt+1}): {e}")
+                
+                if attempt < self.max_telegram_retries - 1:
+                    time.sleep(self.telegram_retry_delay)
+            
+            if not chunk_success:
+                all_success = False
+                logger.error(f"❌ Не удалось отправить часть сообщения #{i+1}")
+
+        return all_success
     
     def load_state(self):
         """Загрузка состояния с обработкой пустого файла"""
@@ -1381,10 +1439,16 @@ class MomentumBotMOEX:
         sector_stats = {}
         
         for symbol, data in active_positions.items():
-            entry_price = data.get('entry_price', 0)
+            try:
+                entry_price = float(data.get('entry_price', 0))
+                stop_loss = float(data.get('stop_loss', 0))
+                atr_percent = float(data.get('atr_percent', 0))
+            except (ValueError, TypeError):
+                entry_price = 0.0
+                stop_loss = 0.0
+                atr_percent = 0.0
+
             sector = data.get('sector', 'Другое')
-            stop_loss = data.get('stop_loss', 0)
-            atr_percent = data.get('atr_percent', 0)
             
             try:
                 # Получаем текущую цену
