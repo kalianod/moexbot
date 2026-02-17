@@ -113,12 +113,13 @@ class VirtualTrade:
             trade.exit_time = datetime.fromisoformat(data['exit_time'])
         return trade
 
-# ========== КЛАСС ДЛЯ ВИРТУАЛЬНОГО ПОРТФЕЛЯ ==========
+
+# ========== КЛАСС ДЛЯ ВИРТУАЛЬНОГО ПОРТФЕЛЯ (с трейлинг-стопом) ==========
 class VirtualPortfolio:
     """Управление виртуальными позициями и историей сделок"""
     def __init__(self, initial_cash=1_000_000):
         self.cash = initial_cash
-        self.positions: Dict[str, Dict] = {}  # symbol -> {'entry_price', 'entry_time', 'quantity', 'stop_loss', ...}
+        self.positions: Dict[str, Dict] = {}  # symbol -> {'entry_price', 'entry_time', 'quantity', 'stop_loss', 'high_since_entry', 'sector', ...}
         self.hedge_position: Dict = {'active': False, 'entry_price': 0, 'entry_time': None, 'quantity': 0}
         self.trade_history: List[VirtualTrade] = []
         self.equity_curve = []
@@ -187,6 +188,7 @@ class VirtualPortfolio:
             'entry_time': datetime.now(),
             'quantity': quantity,
             'stop_loss': stop_loss,
+            'high_since_entry': price,  # для трейлинг-стопа
             'sector': sector,
             'reason': reason,
             'name': symbol
@@ -208,8 +210,18 @@ class VirtualPortfolio:
             is_hedge=False
         )
         self.trade_history.append(trade)
-        logger.info(f"📈 BUY {symbol}: {quantity} шт по {price:.2f}, SL {stop_loss:.2f}")
+        logger.info(f"📈 BUY {symbol}: {quantity} шт по {price:.2f}, начальный SL {stop_loss:.2f}")
         return True
+    
+    def update_position_high(self, symbol: str, current_price: float):
+        """Обновление максимума для трейлинг-стопа"""
+        if symbol in self.positions and current_price > self.positions[symbol].get('high_since_entry', 0):
+            self.positions[symbol]['high_since_entry'] = current_price
+    
+    def update_stop_loss(self, symbol: str, new_stop: float):
+        """Обновление стоп-лосса (например, при пересчёте ATR)"""
+        if symbol in self.positions:
+            self.positions[symbol]['stop_loss'] = new_stop
     
     def close_position(self, symbol: str, price: float, reason: str = '') -> bool:
         """Закрытие длинной позиции"""
@@ -263,17 +275,17 @@ class VirtualPortfolio:
         }
         
         trade = VirtualTrade(
-            symbol='MCFTR_HEDGE',
+            symbol='IMOEX_HEDGE',
             action='HEDGE_OPEN',
             price=price,
             quantity=quantity,
             entry_time=datetime.now(),
             entry_price=price,
-            reason='Hedge signal triggered',
+            reason='Сигнал хеджа (пробой вниз)',
             is_hedge=True
         )
         self.trade_history.append(trade)
-        logger.info(f"🔒 HEDGE OPEN: MCFTR шорт {quantity} шт по {price:.2f}")
+        logger.info(f"🔒 HEDGE OPEN: IMOEX шорт {quantity} шт по {price:.2f}")
         return True
     
     def close_hedge(self, price: float) -> bool:
@@ -289,7 +301,7 @@ class VirtualPortfolio:
         profit_pct = (entry_price - price) / entry_price * 100 if entry_price > 0 else 0
         
         trade = VirtualTrade(
-            symbol='MCFTR_HEDGE',
+            symbol='IMOEX_HEDGE',
             action='HEDGE_CLOSE',
             price=price,
             quantity=quantity,
@@ -298,22 +310,22 @@ class VirtualPortfolio:
             entry_price=entry_price,
             exit_price=price,
             profit_pct=profit_pct,
-            reason='Hedge close signal',
+            reason='Сигнал закрытия хеджа',
             is_hedge=True
         )
         self.trade_history.append(trade)
         
         self.hedge_position = {'active': False, 'entry_price': 0, 'entry_time': None, 'quantity': 0}
-        logger.info(f"🔓 HEDGE CLOSE: MCFTR, PnL: {profit_pct:+.2f}%")
+        logger.info(f"🔓 HEDGE CLOSE: IMOEX, PnL: {profit_pct:+.2f}%")
         return True
     
     def get_total_value(self) -> float:
-        """Общая стоимость портфеля (кэш + позиции)"""
+        """Общая стоимость портфеля (кэш + позиции по текущим ценам)"""
+        # Для простоты используем цену входа, но лучше было бы передавать текущие цены.
+        # Здесь оставим приближение.
         value = self.cash
-        
         for pos in self.positions.values():
-            value += pos['quantity'] * pos['entry_price']  # Используем цену входа для простоты
-        
+            value += pos['quantity'] * pos['entry_price']  # упрощение
         return value
     
     def save_trades_to_csv(self, filename='logs/virtual_trades_c1.csv'):
@@ -339,9 +351,10 @@ class VirtualPortfolio:
         df.to_csv(filename, index=False, encoding='utf-8')
         logger.info(f"💾 История сделок сохранена в {filename} ({len(self.trade_history)} записей)")
 
+
 # ========== ОСНОВНОЙ КЛАСС БОТА ==========
 class MomentumBotC1:
-    """Бот стратегии C1 с хеджем (ROC(252), топ-10, ребаланс 40 дней)"""
+    """Бот стратегии C1 с хеджем (ROC252, топ-10, ребаланс 40 дней)"""
     
     def __init__(self):
         self.telegram_token = os.getenv('TELEGRAM_TOKEN')
@@ -362,11 +375,13 @@ class MomentumBotC1:
         self.atr_multiplier = 4.0
         self.atr_period = 14
         
-        # Параметры хеджа
+        # Параметры хеджа (ориентир на IMOEX)
         self.hedge_sma_period = 200
         self.hedge_threshold = 0.005  # 0.5%
-        self.hedge_enabled = True  # Хедж активен
+        self.hedge_enabled = True
+        self.hedge_index = 'IMOEX'  # для сигналов используем IMOEX
         
+        # Бенчмарк для отчётов (MCFTR)
         self.benchmark_symbol = 'MCFTR'
         self.benchmark_name = 'Индекс Мосбиржи полной доходности'
         
@@ -380,19 +395,20 @@ class MomentumBotC1:
         self.data_fetcher = MOEXDataFetcherC1(self)
         self.virtual_portfolio = VirtualPortfolio()
         
-        # Для отчетов
+        # Для отчетов и статистики
         self.asset_ranking: List[AssetDataC1] = []
         self.sector_performance = {}
+        self.reject_stats = defaultdict(int)  # счётчик причин отказов
         
         # Загрузка состояния
         self.load_state()
         
         logger.info("=" * 60)
-        logger.info("🚀 MOMENTUM BOT C1 С ХЕДЖЕМ")
+        logger.info("🚀 MOMENTUM BOT C1 С ХЕДЖЕМ (v2 с трейлинг-стопом)")
         logger.info(f"📈 Стратегия: C1 (ROC252, SMA{self.sma_fast}/{self.sma_slow}, SMA{self.sma_entry})")
         logger.info(f"🎯 Отбор: топ-{self.top_n} по ROC252")
-        logger.info(f"🛡️ Выход: B5 (ATR x{self.atr_multiplier}, SMA exit)")
-        logger.info(f"🔒 Хедж: SMA{self.hedge_sma_period}, порог {self.hedge_threshold*100}%")
+        logger.info(f"🛡️ Выход: B5 (ATR трейлинг x{self.atr_multiplier}, SMA exit)")
+        logger.info(f"🔒 Хедж: по IMOEX, SMA{self.hedge_sma_period}, порог {self.hedge_threshold*100}%")
         logger.info(f"📅 Ребаланс: каждые {self.rebalance_days} дней")
         logger.info("=" * 60)
 
@@ -430,7 +446,7 @@ class MomentumBotC1:
         except json.JSONDecodeError as e:
             logger.error(f"❌ Ошибка парсинга JSON: {e}")
             logger.info("🔄 Создаем новый файл состояния")
-            self.save_state()  # Создаем новый корректный файл
+            self.save_state()
         except Exception as e:
             logger.error(f"❌ Ошибка загрузки состояния: {e}")
             logger.info("🔄 Продолжаем с чистым портфелем")
@@ -442,7 +458,7 @@ class MomentumBotC1:
                 'portfolio': self.virtual_portfolio.to_dict(),
                 'last_rebalance_date': self.last_rebalance_date.isoformat() if self.last_rebalance_date else None,
                 'timestamp': datetime.now().isoformat(),
-                'version': 'c1_hedge_v1.0'
+                'version': 'c1_hedge_v2'
             }
             
             with open('logs/bot_state_c1.json', 'w', encoding='utf-8') as f:
@@ -467,7 +483,7 @@ class MomentumBotC1:
         return False
 
     def analyze_assets(self) -> List['AssetDataC1']:
-        """Анализ активов: ROC252 + фильтры C1, отбор топ-10"""
+        """Анализ активов: ROC252 + фильтры C1, отбор топ-10 с подсчётом отказов"""
         top_assets = self.data_fetcher.get_top_assets()
         if not top_assets:
             logger.error("❌ Нет активов для анализа")
@@ -476,7 +492,7 @@ class MomentumBotC1:
         logger.info(f"📊 Анализ {len(top_assets)} активов...")
         
         assets = []
-        benchmark_data = self.data_fetcher.get_benchmark_data()
+        self.reject_stats.clear()
         
         for i, asset_info in enumerate(top_assets):
             if asset_info['symbol'] == self.benchmark_symbol:
@@ -485,19 +501,20 @@ class MomentumBotC1:
             try:
                 asset = self.data_fetcher.calculate_asset_data(asset_info)
                 if asset is None:
+                    self.reject_stats['no_data'] += 1
                     continue
                 
                 # Фильтры C1
                 if asset.roc252 <= 0:
-                    logger.debug(f"❌ {asset.symbol}: ROC252 = {asset.roc252:.1f}% <= 0")
+                    self.reject_stats['roc_negative'] += 1
                     continue
                 
                 if self.use_trend_filter and not asset.sma_signal:
-                    logger.debug(f"❌ {asset.symbol}: SMA({self.sma_fast}) > SMA({self.sma_slow}) = {asset.sma_signal}")
+                    self.reject_stats['trend_filter'] += 1
                     continue
                 
                 if self.use_entry_sma_filter and asset.current_price <= asset.sma_entry:
-                    logger.debug(f"❌ {asset.symbol}: цена {asset.current_price:.2f} <= SMA{self.sma_entry} {asset.sma_entry:.2f}")
+                    self.reject_stats['entry_filter'] += 1
                     continue
                 
                 assets.append(asset)
@@ -507,6 +524,7 @@ class MomentumBotC1:
                 
             except Exception as e:
                 logger.error(f"Ошибка анализа {asset_info['symbol']}: {e}")
+                self.reject_stats['errors'] += 1
                 continue
         
         # Сортируем по ROC252 и берем топ-10
@@ -515,8 +533,18 @@ class MomentumBotC1:
         
         logger.info(f"✅ Отобрано {len(selected)} активов из {len(assets)} прошедших фильтры")
         
-        if benchmark_data:
-            logger.info(f"📈 Бенчмарк MCFTR ROC252: {benchmark_data['roc252']:+.1f}%")
+        # Логируем статистику отказов
+        total_rejected = sum(self.reject_stats.values())
+        if total_rejected > 0:
+            logger.info(f"📊 Статистика отказов: нет данных {self.reject_stats.get('no_data',0)}, "
+                       f"ROC<=0 {self.reject_stats.get('roc_negative',0)}, "
+                       f"тренд-фильтр {self.reject_stats.get('trend_filter',0)}, "
+                       f"entry-фильтр {self.reject_stats.get('entry_filter',0)}, "
+                       f"ошибки {self.reject_stats.get('errors',0)}")
+        
+        benchmark = self.data_fetcher.get_benchmark_data()
+        if benchmark:
+            logger.info(f"📈 Бенчмарк MCFTR ROC252: {benchmark['roc252']:+.1f}%")
         
         for i, asset in enumerate(selected, 1):
             logger.info(f"  {i}. {asset.symbol}: ROC252 = {asset.roc252:+.1f}%, цена: {asset.current_price:.2f}, сектор: {asset.sector}")
@@ -524,14 +552,14 @@ class MomentumBotC1:
         return selected
 
     def check_hedge_conditions(self) -> Tuple[bool, bool]:
-        """Проверка условий открытия/закрытия хеджа"""
+        """Проверка условий открытия/закрытия хеджа по IMOEX"""
         if not self.hedge_enabled:
             return False, False
         
-        # Получаем данные индекса
-        df = self.data_fetcher.get_cached_historical_data(self.benchmark_symbol, 400)
+        # Получаем данные по IMOEX
+        df = self.data_fetcher.get_cached_historical_data(self.hedge_index, 400)
         if df is None or len(df) < 2:
-            logger.debug("⚠️ Недостаточно данных для проверки хеджа")
+            logger.debug("⚠️ Недостаточно данных для проверки хеджа (IMOEX)")
             return False, False
         
         try:
@@ -542,7 +570,7 @@ class MomentumBotC1:
             # SMA200
             sma200 = df['close'].rolling(window=self.hedge_sma_period).mean().iloc[-1]
             if pd.isna(sma200):
-                logger.debug("⚠️ SMA200 не рассчитана")
+                logger.debug("⚠️ SMA200 не рассчитана для IMOEX")
                 return False, False
             
             hedge_enabled = current_close > sma200
@@ -555,9 +583,9 @@ class MomentumBotC1:
             should_close = self.virtual_portfolio.hedge_position['active'] and current_close > close_threshold
             
             if should_open:
-                logger.info(f"🔔 Сигнал HEDGE_OPEN: цена {current_close:.2f} < {prev_low:.2f} - {self.hedge_threshold*100}% = {open_threshold:.2f}")
+                logger.info(f"🔔 Сигнал HEDGE_OPEN: IMOEX {current_close:.2f} < {prev_low:.2f} - {self.hedge_threshold*100}% = {open_threshold:.2f}")
             if should_close:
-                logger.info(f"🔔 Сигнал HEDGE_CLOSE: цена {current_close:.2f} > {prev_high:.2f} + {self.hedge_threshold*100}% = {close_threshold:.2f}")
+                logger.info(f"🔔 Сигнал HEDGE_CLOSE: IMOEX {current_close:.2f} > {prev_high:.2f} + {self.hedge_threshold*100}% = {close_threshold:.2f}")
             
             return should_open, should_close
             
@@ -565,28 +593,57 @@ class MomentumBotC1:
             logger.error(f"Ошибка проверки хеджа: {e}")
             return False, False
 
+    def update_trailing_stops(self, assets_dict: Dict[str, 'AssetDataC1']):
+        """Обновление трейлинг-стопов для всех позиций на основе текущих данных"""
+        for symbol in list(self.virtual_portfolio.positions.keys()):
+            if symbol not in assets_dict:
+                continue
+            asset = assets_dict[symbol]
+            current_price = asset.current_price
+            # Обновляем максимум
+            self.virtual_portfolio.update_position_high(symbol, current_price)
+            # Пересчитываем стоп
+            high = self.virtual_portfolio.positions[symbol].get('high_since_entry', current_price)
+            new_stop = high - self.atr_multiplier * asset.atr
+            # Ограничиваем 5-20% от текущей цены (опционально)
+            pct = (current_price - new_stop) / current_price * 100
+            if pct < 5:
+                new_stop = current_price * 0.95
+            elif pct > 20:
+                new_stop = current_price * 0.80
+            self.virtual_portfolio.update_stop_loss(symbol, max(new_stop, 0.01))
+
     def generate_signals(self, assets: List['AssetDataC1']) -> List[VirtualTrade]:
         """Генерация сигналов: BUY/SELL, ребаланс, стоп-лоссы, хедж"""
         signals = []
+        assets_dict = {a.symbol: a for a in assets}
         
         # 1. Проверка хеджа
         hedge_open, hedge_close = self.check_hedge_conditions()
         if hedge_open:
-            price, _, _ = self.data_fetcher.get_current_price(self.benchmark_symbol)
+            # Для сигнала используем цену IMOEX (индекс)
+            price, _, _ = self.data_fetcher.get_current_price(self.hedge_index)
             if price and price > 0:
                 if self.virtual_portfolio.open_hedge(price):
                     signals.append(self.virtual_portfolio.trade_history[-1])
         
         if hedge_close:
-            price, _, _ = self.data_fetcher.get_current_price(self.benchmark_symbol)
+            price, _, _ = self.data_fetcher.get_current_price(self.hedge_index)
             if price and price > 0:
                 if self.virtual_portfolio.close_hedge(price):
                     signals.append(self.virtual_portfolio.trade_history[-1])
         
-        # 2. Проверка стоп-лоссов для существующих позиций
+        # 2. Обновление трейлинг-стопов для всех позиций (если есть данные)
+        self.update_trailing_stops(assets_dict)
+        
+        # 3. Проверка стоп-лоссов для существующих позиций
         for symbol in list(self.virtual_portfolio.positions.keys()):
             # Получаем текущую цену
-            price, _, _ = self.data_fetcher.get_current_price(symbol)
+            if symbol in assets_dict:
+                price = assets_dict[symbol].current_price
+            else:
+                price, _, _ = self.data_fetcher.get_current_price(symbol)
+            
             if price is None or price <= 0:
                 continue
             
@@ -598,16 +655,10 @@ class MomentumBotC1:
                     signals.append(self.virtual_portfolio.trade_history[-1])
                 continue
             
-            # Получаем свежие данные актива
-            asset_info = {
-                'symbol': symbol, 
-                'name': pos.get('name', symbol), 
-                'sector': pos.get('sector', ''), 
-                'source': 'moex'
-            }
-            asset = self.data_fetcher.calculate_asset_data(asset_info)
-            if asset:
-                # Выход по SMA exit (SMA50)
+            # Если есть свежие данные актива, проверяем выход по SMA exit и ROC
+            if symbol in assets_dict:
+                asset = assets_dict[symbol]
+                # Выход по SMA exit (цена < SMA50)
                 if self.use_sma_exit and price < asset.sma_slow:
                     if self.virtual_portfolio.close_position(symbol, price, reason=f"SMA exit: {price:.2f} < SMA{self.sma_slow} {asset.sma_slow:.2f}"):
                         signals.append(self.virtual_portfolio.trade_history[-1])
@@ -631,9 +682,9 @@ class MomentumBotC1:
                         signals.append(self.virtual_portfolio.trade_history[-1])
                     continue
         
-        # 3. Ребаланс (раз в 40 дней)
-        if self.should_rebalance():
-            logger.info(f"🔄 ЗАПУСК РЕБАЛАНСА")
+        # 4. Ребаланс (раз в 40 дней), только если хедж не активен
+        if not self.virtual_portfolio.hedge_position['active'] and self.should_rebalance():
+            logger.info(f"🔄 ЗАПУСК РЕБАЛАНСА (хедж неактивен)")
             
             # Определяем, какие акции должны быть в портфеле
             selected_symbols = {asset.symbol for asset in assets}
@@ -641,7 +692,9 @@ class MomentumBotC1:
             # Закрываем позиции, которые не прошли отбор
             for symbol in list(self.virtual_portfolio.positions.keys()):
                 if symbol not in selected_symbols:
-                    price, _, _ = self.data_fetcher.get_current_price(symbol)
+                    price = assets_dict.get(symbol)
+                    if price is None:
+                        price, _, _ = self.data_fetcher.get_current_price(symbol)
                     if price and price > 0:
                         if self.virtual_portfolio.close_position(symbol, price, reason="Исключена при ребалансе"):
                             signals.append(self.virtual_portfolio.trade_history[-1])
@@ -650,6 +703,7 @@ class MomentumBotC1:
             for asset in assets:
                 if asset.symbol not in self.virtual_portfolio.positions:
                     price = asset.current_price
+                    # Рассчитываем начальный стоп (можно по ATR или фиксированный)
                     stop_loss = self.calculate_stop_loss(asset)
                     success = self.virtual_portfolio.open_position(
                         symbol=asset.symbol,
@@ -667,7 +721,7 @@ class MomentumBotC1:
         return signals
 
     def calculate_stop_loss(self, asset: 'AssetDataC1') -> float:
-        """Расчет стоп-лосса по ATR или минимуму"""
+        """Расчет начального стоп-лосса по ATR (для новой позиции)"""
         if self.use_atr_trailing and asset.atr > 0:
             stop = asset.current_price - self.atr_multiplier * asset.atr
             # Ограничиваем 5-20%
@@ -687,7 +741,7 @@ class MomentumBotC1:
                     msg = (
                         f"🔒 *ХЕДЖ ОТКРЫТ*\n"
                         f"═══════════════════════════\n"
-                        f"💰 Цена: {signal.price:.2f} руб\n"
+                        f"💰 Цена IMOEX: {signal.price:.2f} руб\n"
                         f"📈 SMA{self.hedge_sma_period}: включен\n"
                         f"⚡ Порог: {self.hedge_threshold*100}%\n"
                         f"🕐 {signal.entry_time.strftime('%H:%M:%S %d.%m.%Y')}\n"
@@ -739,7 +793,7 @@ class MomentumBotC1:
                         f"{signal.reason}"
                     )
             self.send_telegram_message(msg, force=True)
-            time.sleep(0.5)  # Пауза между сообщениями
+            time.sleep(0.5)
     
     def _get_asset(self, symbol: str) -> Optional['AssetDataC1']:
         """Поиск актива в текущем рейтинге"""
@@ -801,6 +855,24 @@ class MomentumBotC1:
         
         return success
 
+    def format_check_message(self, assets: List['AssetDataC1']) -> str:
+        """Краткое сообщение о проверке (без деталей позиций)"""
+        current_time = datetime.now().strftime('%d.%m.%Y %H:%M')
+        hedge_status = "АКТИВЕН" if self.virtual_portfolio.hedge_position['active'] else "неактивен"
+        msg = f"🕐 *ПРОВЕРКА {current_time}*\n"
+        msg += f"📊 Активных позиций: {len(self.virtual_portfolio.positions)}\n"
+        msg += f"🔒 Хедж: {hedge_status}\n"
+        if assets:
+            top3 = assets[:3]
+            msg += "🏆 Топ-3 по ROC252:\n"
+            for a in top3:
+                msg += f"• {a.symbol}: {a.roc252:+.1f}%\n"
+        if self.reject_stats:
+            msg += "📉 Отказы:\n"
+            for k, v in self.reject_stats.items():
+                msg += f"  {k}: {v}\n"
+        return msg
+
     def format_combined_report(self, assets: List['AssetDataC1']) -> str:
         """Формирование дневного отчета"""
         if not assets:
@@ -826,11 +898,16 @@ class MomentumBotC1:
             for symbol, pos in self.virtual_portfolio.positions.items():
                 entry = pos['entry_price']
                 stop = pos.get('stop_loss', 0)
-                current_price, _, _ = self.data_fetcher.get_current_price(symbol)
-                current_price = current_price or entry
+                # Получаем текущую цену
+                if symbol in [a.symbol for a in assets]:
+                    asset = next(a for a in assets if a.symbol == symbol)
+                    current_price = asset.current_price
+                else:
+                    current_price, _, _ = self.data_fetcher.get_current_price(symbol)
+                    current_price = current_price or entry
                 profit = ((current_price - entry) / entry) * 100
                 profit_emoji = "📈" if profit > 0 else "📉"
-                msg += f"• {symbol}: вход {entry:.2f} → {current_price:.2f} {profit_emoji} {profit:+.1f}%, стоп {stop:.2f}, {pos.get('sector', '')}\n"
+                msg += f"• {symbol}: вход {entry:.2f} → {current_price:.2f} {profit_emoji} {profit:+.1f}%, стоп {stop:.2f}, сектор {pos.get('sector', '')}\n"
         else:
             msg += "Нет активных позиций\n"
         
@@ -839,7 +916,7 @@ class MomentumBotC1:
         
         msg += "\n═══════════════════════════\n"
         msg += f"⚙️ ROC252 > 0, SMA{self.sma_fast}>{self.sma_slow}, цена > SMA{self.sma_entry}\n"
-        msg += f"🛡️ ATR x{self.atr_multiplier}, SMA exit, хедж SMA{self.hedge_sma_period} {self.hedge_threshold*100}%\n"
+        msg += f"🛡️ ATR x{self.atr_multiplier} трейлинг, SMA exit, хедж SMA{self.hedge_sma_period} {self.hedge_threshold*100}%\n"
         msg += f"📊 Виртуальный портфель: {self.virtual_portfolio.cash:.0f} RUB\n"
         
         return msg
@@ -853,6 +930,9 @@ class MomentumBotC1:
             assets = self.analyze_assets()
             if not assets:
                 logger.warning("❌ Нет активов для анализа")
+                # Отправляем краткое сообщение о проверке
+                check_msg = self.format_check_message([])
+                self.send_telegram_message(check_msg, force=True)
                 return
             
             self.asset_ranking = assets
@@ -870,6 +950,10 @@ class MomentumBotC1:
                 report = self.format_combined_report(assets)
                 self.send_telegram_message(report, force=True)
                 logger.info("📊 Отчет отправлен")
+            else:
+                # Отправляем краткое сообщение о проверке
+                check_msg = self.format_check_message(assets)
+                self.send_telegram_message(check_msg, force=True)
             
             # Сохранение сделок в CSV
             self.virtual_portfolio.save_trades_to_csv()
@@ -880,6 +964,7 @@ class MomentumBotC1:
         except Exception as e:
             logger.error(f"❌ Ошибка в цикле стратегии: {e}")
             logger.error(traceback.format_exc())
+            self.send_telegram_message(f"❌ *ОШИБКА В ЦИКЛЕ*\n{str(e)[:200]}", force=True)
 
     def should_run_check_now(self) -> bool:
         """Проверка расписания"""
@@ -934,7 +1019,7 @@ class MomentumBotC1:
 
     def run(self):
         """Основной цикл"""
-        logger.info("🚀 Запуск бота C1 с хеджем")
+        logger.info("🚀 Запуск бота C1 с хеджем (версия с трейлинг-стопом)")
         
         # Проверка конфигурации
         if not os.path.exists('sectors_config.json'):
@@ -944,10 +1029,10 @@ class MomentumBotC1:
         
         # Приветственное сообщение
         welcome = (
-            f"🚀 *MOMENTUM C1 HEDGE BOT ЗАПУЩЕН*\n"
+            f"🚀 *MOMENTUM C1 HEDGE BOT ЗАПУЩЕН (v2)*\n"
             f"📈 Стратегия: C1 (ROC252, топ-10)\n"
-            f"🛡️ Выход: B5 (ATR x{self.atr_multiplier}, SMA exit)\n"
-            f"🔒 Хедж: SMA{self.hedge_sma_period}, порог {self.hedge_threshold*100}%\n"
+            f"🛡️ Выход: B5 (ATR x{self.atr_multiplier} трейлинг, SMA exit)\n"
+            f"🔒 Хедж: по IMOEX, SMA{self.hedge_sma_period}, порог {self.hedge_threshold*100}%\n"
             f"📅 Ребаланс: каждые {self.rebalance_days} дней\n"
             f"🕐 Расписание: проверки {self.check_times[0]}, {self.check_times[1]}, отчет {self.report_time}\n"
             f"📊 Виртуальный портфель: {self.virtual_portfolio.cash:.0f} RUB\n"
@@ -981,6 +1066,7 @@ class MomentumBotC1:
             logger.error(traceback.format_exc())
             self.send_telegram_message(f"❌ *КРИТИЧЕСКАЯ ОШИБКА*\n{str(e)[:200]}", force=True)
 
+
 # ========== КЛАССЫ ДЛЯ ДАННЫХ И ЗАГРУЗКИ ==========
 @dataclass
 class AssetDataC1:
@@ -997,6 +1083,7 @@ class AssetDataC1:
     source: str
     timestamp: datetime = field(default_factory=datetime.now)
 
+
 class MOEXDataFetcherC1:
     """Загрузка данных с MOEX"""
     def __init__(self, bot: MomentumBotC1):
@@ -1007,7 +1094,8 @@ class MOEXDataFetcherC1:
         self.max_retries = 3
         self._cache = {
             'historical_data': {},
-            'benchmark': {'data': None, 'timestamp': None, 'ttl': 24*3600}
+            'benchmark': {'data': None, 'timestamp': None, 'ttl': 24*3600},
+            'imoex': {'data': None, 'timestamp': None, 'ttl': 24*3600}
         }
         self.sectors_config = self._load_sectors_config()
     
@@ -1042,7 +1130,7 @@ class MOEXDataFetcherC1:
         """Получение текущей цены"""
         for attempt in range(self.max_retries):
             try:
-                # Пробуем TQBR (акции)
+                # Пробуем TQBR (акции) или SNDX (индексы)
                 for board in ['TQBR', 'SNDX']:
                     url = f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/{board}/securities/{symbol}.json"
                     resp = self.session.get(url, timeout=10)
@@ -1220,6 +1308,7 @@ class MOEXDataFetcherC1:
         }
         
         return data
+
 
 # ========== ЗАПУСК ==========
 def main():
