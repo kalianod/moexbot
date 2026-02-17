@@ -494,7 +494,7 @@ class MomentumBotMOEX:
         logger.info(f"📊 Параметры: Секторный отбор {self.top_assets_count} акций")
         logger.info(f"⚙️ Фильтры: 12M > {self.min_12m_momentum}%, SMA положительный")
         logger.info(f"📈 Источник данных: {'apimoex' if HAS_APIMOEX else 'MOEX API (apimoex недоступен)'}")
-        logger.info(f"🕐 Расписание: проверки в 14:10 и 19:10, отчет в 19:30 (GMT+3)")
+        logger.info(f"🕐 Расписание: проверки в {self.check_times[0]} и {self.check_times[1]}, отчет в {self.report_time} (GMT+3)")
         logger.info(f"📊 Бенчмарк: {self.benchmark_symbol} ({self.benchmark_name})")
         logger.info(f"🎯 Стратегия: {'Секторный отбор' if self.use_sector_selection else 'Топ-10 отбор'}")
         logger.info(f"⚠️ Управление рисками: ATR({self.atr_period}) стоп-лосс x{self.atr_multiplier}")
@@ -1103,9 +1103,44 @@ class MomentumBotMOEX:
         
         return selected_assets
     
+    # NEW: Метод безопасного получения количества активных позиций
+    def _safe_get_active_positions_count(self) -> int:
+        """
+        Безопасно возвращает количество активных позиций.
+        Игнорирует некорректные значения статусов.
+        # FIX: Предотвращает ошибку сравнения str и int
+        """
+        try:
+            count = 0
+            for data in self.current_portfolio.values():
+                status = data.get('status')
+                # Безопасно проверяем, что статус именно 'IN' (строка)
+                if isinstance(status, str) and status == 'IN':
+                    count += 1
+            return count
+        except Exception as e:
+            logger.error(f"Ошибка подсчета активных позиций: {e}")
+            return 0
+    
+    # NEW: Метод безопасного получения float значения из словаря
+    def _safe_get_float(self, data: Dict, key: str, default: float = 0.0) -> float:
+        """
+        Безопасно извлекает float значение из словаря.
+        # FIX: Предотвращает ошибки преобразования типов
+        """
+        try:
+            value = data.get(key, default)
+            if value is None:
+                return default
+            return float(value)
+        except (ValueError, TypeError):
+            logger.warning(f"Не удалось преобразовать {key}={data.get(key)} в float, используется {default}")
+            return default
+    
     def generate_signals(self, assets: List[AssetData]) -> List[Dict]:
         """
         Генерация сигналов с секторной логикой
+        # FIX: Исправлена ошибка сравнения str и int
         """
         signals = []
         benchmark_data = self.get_benchmark_data()
@@ -1123,7 +1158,8 @@ class MomentumBotMOEX:
                     asset.sma_signal and
                     current_status != 'IN'):
                     
-                    active_positions = sum(1 for v in self.current_portfolio.values() if v.get('status') == 'IN')
+                    # FIX: Используем безопасный метод подсчета активных позиций
+                    active_positions = self._safe_get_active_positions_count()
                     
                     if active_positions < 30:
                         signal = {
@@ -1174,7 +1210,9 @@ class MomentumBotMOEX:
                         
                         if worst_position and worst_momentum < asset.combined_momentum:
                             entry_data = self.current_portfolio.get(worst_position, {})
-                            entry_price = entry_data.get('entry_price', 0)
+                            # FIX: Безопасное преобразование entry_price
+                            entry_price = self._safe_get_float(entry_data, 'entry_price', 0)
+                            
                             current_price = asset_dict.get(worst_position, asset).current_price
                             profit_percent = ((current_price - entry_price) / entry_price) * 100 if entry_price > 0 else 0
                             
@@ -1247,7 +1285,8 @@ class MomentumBotMOEX:
                 
                 if should_sell:
                     entry_data = self.current_portfolio.get(symbol, {})
-                    entry_price = entry_data.get('entry_price', asset.current_price)
+                    # FIX: Безопасное преобразование entry_price
+                    entry_price = self._safe_get_float(entry_data, 'entry_price', asset.current_price)
                     profit_percent = ((asset.current_price - entry_price) / entry_price) * 100
                     
                     signal = {
@@ -1404,7 +1443,14 @@ class MomentumBotMOEX:
                 if 'last_notification_time' in state and state['last_notification_time']:
                     self.last_notification_time = datetime.fromisoformat(state['last_notification_time'])
                 
-                active_count = len([v for v in self.current_portfolio.values() if v.get('status') == 'IN'])
+                # FIX: При загрузке состояния, восстанавливаем корректные статусы
+                for symbol, data in self.current_portfolio.items():
+                    status = data.get('status')
+                    if not isinstance(status, str):
+                        logger.warning(f"Некорректный статус для {symbol}: {status}, устанавливаю 'OUT'")
+                        data['status'] = 'OUT'
+                
+                active_count = self._safe_get_active_positions_count()
                 logger.info(f"💾 Состояние загружено. Активных позиций: {active_count}")
                 logger.info(f"⏰ Последнее оповещение: {self.last_notification_time}")
             else:
@@ -1419,10 +1465,13 @@ class MomentumBotMOEX:
     def format_active_positions(self) -> str:
         """
         Форматирование списка активных позиций (исправленная версия)
-        Исправлено: убрано дублирование 6M моментума
+        # FIX: Безопасное преобразование типов, убрано дублирование 6M моментума
         """
-        active_positions = {k: v for k, v in self.current_portfolio.items() 
-                        if v.get('status') == 'IN'}
+        active_positions = {}
+        for k, v in self.current_portfolio.items():
+            status = v.get('status')
+            if isinstance(status, str) and status == 'IN':
+                active_positions[k] = v
         
         if not active_positions:
             return "📊 *АКТИВНЫХ ПОЗИЦИЙ НЕТ*\nВсе средства в рублях"
@@ -1439,14 +1488,10 @@ class MomentumBotMOEX:
         sector_stats = {}
         
         for symbol, data in active_positions.items():
-            try:
-                entry_price = float(data.get('entry_price', 0))
-                stop_loss = float(data.get('stop_loss', 0))
-                atr_percent = float(data.get('atr_percent', 0))
-            except (ValueError, TypeError):
-                entry_price = 0.0
-                stop_loss = 0.0
-                atr_percent = 0.0
+            # FIX: Безопасное преобразование числовых значений
+            entry_price = self._safe_get_float(data, 'entry_price', 0)
+            stop_loss = self._safe_get_float(data, 'stop_loss', 0)
+            atr_percent = self._safe_get_float(data, 'atr_percent', 0)
 
             sector = data.get('sector', 'Другое')
             
@@ -1454,7 +1499,7 @@ class MomentumBotMOEX:
                 # Получаем текущую цену
                 price, _, _ = self.data_fetcher.get_current_price(symbol)
                 if price and price > 0:
-                    profit_percent = ((price - entry_price) / entry_price) * 100
+                    profit_percent = ((price - entry_price) / entry_price) * 100 if entry_price > 0 else 0
                     
                     # Получаем полные данные актива из asset_ranking
                     asset_data = None
@@ -1619,6 +1664,7 @@ class MomentumBotMOEX:
         """
         Объединенный отчет: рейтинг акций + эффективность секторов
         Использует новый формат как вы просили
+        # FIX: Безопасное преобразование типов
         """
         if not assets:
             return "📊 *Нет данных для отчета*"
@@ -1645,8 +1691,13 @@ class MomentumBotMOEX:
         sorted_sectors = []
         for sector, assets_list in sector_assets.items():
             if assets_list:
-                avg_momentum = np.mean([a.combined_momentum for a in assets_list])
-                avg_vs_benchmark = np.mean([a.absolute_momentum_6m - benchmark_momentum for a in assets_list])
+                # FIX: Безопасное вычисление средних значений
+                combined_momentums = [a.combined_momentum for a in assets_list if a.combined_momentum is not None]
+                vs_benchmarks = [a.absolute_momentum_6m - benchmark_momentum for a in assets_list if a.absolute_momentum_6m is not None]
+                
+                avg_momentum = np.mean(combined_momentums) if combined_momentums else 0
+                avg_vs_benchmark = np.mean(vs_benchmarks) if vs_benchmarks else 0
+                
                 sorted_sectors.append({
                     'name': sector,
                     'assets': assets_list,
@@ -1696,7 +1747,7 @@ class MomentumBotMOEX:
                 message += f"   12M: {asset.momentum_12m:+.1f}% | 6M: {asset.absolute_momentum_6m:+.1f}% | 1M: {asset.momentum_1m:+.1f}%\n\n"
         
         # Подсчет активных позиций
-        active_count = sum(1 for v in self.current_portfolio.values() if v.get('status') == 'IN')
+        active_count = self._safe_get_active_positions_count()
         
         # Находим лучший сектор и самую сильную акцию
         best_sector = sorted_sectors[0] if sorted_sectors else None
@@ -1841,10 +1892,14 @@ class MomentumBotMOEX:
         message += f"• SMA: {self.sma_fast_period}/{self.sma_slow_period} дней\n"
         message += f"• Веса: 12M({self.weights['12M']*100:.0f}%), 6M({self.weights['6M']*100:.0f}%), 1M({self.weights['1M']*100:.0f}%)\n"
         message += f"• Управление рисками: ATR({self.atr_period}) стоп-лосс x{self.atr_multiplier}\n"
-        message += f"• Проверка: каждые {self.check_interval//3600} часа\n"
+        
+        # FIX: Безопасное получение check_interval
+        check_interval_hours = self.check_interval // 3600 if self.check_interval else 12
+        message += f"• Проверка: каждые {check_interval_hours} часа\n"
+        
         message += f"• Оповещение: каждые 24 часа\n"
         
-        active_count = sum(1 for v in self.current_portfolio.values() if v.get('status') == 'IN')
+        active_count = self._safe_get_active_positions_count()
         if active_count > 0:
             message += f"• Активных позиций: {active_count}\n"
         
@@ -1990,13 +2045,21 @@ class MomentumBotMOEX:
     def save_state(self):
         """Сохранение состояния"""
         try:
+            # FIX: Преобразуем статусы в строки перед сохранением
+            portfolio_to_save = {}
+            for symbol, data in self.current_portfolio.items():
+                portfolio_to_save[symbol] = data.copy()
+                # Убеждаемся, что status - строка
+                if 'status' in data:
+                    portfolio_to_save[symbol]['status'] = str(data['status'])
+            
             state = {
-                'current_portfolio': self.current_portfolio,
+                'current_portfolio': portfolio_to_save,
                 'signal_history': self.signal_history[-100:],
                 'last_update': datetime.now().isoformat(),
                 'last_notification_time': self.last_notification_time.isoformat() if self.last_notification_time else None,
                 'errors_count': self.errors_count,
-                'version': 'moex_bot_v7_sector_selection_atr_scheduled',
+                'version': 'moex_bot_v7_sector_selection_atr_scheduled_fixed',
                 'risk_params': {
                     'atr_period': self.atr_period,
                     'atr_multiplier': self.atr_multiplier,
@@ -2058,7 +2121,7 @@ class MomentumBotMOEX:
                 f"📡 Источник данных: {'apimoex' if HAS_APIMOEX else 'MOEX API'}\n"
                 f"🕐 Расписание: проверки в {self.check_times[0]} и {self.check_times[1]}, отчет в {self.report_time} (GMT+3)\n"
                 f"⏱️ Задержка между запросами: {self.analysis_request_delay} сек\n"
-                f"⚡ Версия: секторный отбор с расписанием"
+                f"⚡ Версия: секторный отбор с расписанием (исправлена ошибка сравнения типов)"
             )
             self.send_telegram_message(welcome_msg, force=True)
             

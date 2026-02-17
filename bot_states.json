@@ -1,0 +1,43 @@
+{
+  "states": {
+    "IMOEX": {
+      "current_signal": "НЕТ СИГНАЛА",
+      "last_price": 2782.6,
+      "last_update": "2026-02-16T16:10:16.140331",
+      "signal_count": 1,
+      "last_signal_time": "2026-02-11T16:10:38.849624",
+      "position": "hedge_closed"
+    },
+    "MCFTR": {
+      "current_signal": "НЕТ СИГНАЛА",
+      "last_price": 7470.19,
+      "last_update": "2026-02-16T16:10:16.150718",
+      "signal_count": 1,
+      "last_signal_time": "2026-02-12T16:10:21.482251",
+      "position": "hedge_closed"
+    },
+    "CNYRUB_TOM": {
+      "current_signal": "НЕТ СИГНАЛА",
+      "last_price": 11.125,
+      "last_update": "2026-02-16T16:10:16.161547",
+      "signal_count": 2,
+      "last_signal_time": "2026-02-13T16:10:04.982505",
+      "position": "hedge_closed"
+    },
+    "GLDRUB_TOM": {
+      "current_signal": "ЗАКРЫТЬ ХЕДЖ",
+      "last_price": 12317.0,
+      "last_update": "2026-02-16T16:10:16.172989",
+      "signal_count": 2,
+      "last_signal_time": "2026-02-12T16:10:21.506081",
+      "position": "hedge_closed"
+    }
+  },
+  "global_stats": {
+    "total_checks": 21,
+    "total_signals": 6,
+    "start_time": "2026-02-07T06:15:29.624110",
+    "days_active": 11
+  },
+  "last_save": "2026-02-17T07:10:43.123312"
+}
