@@ -54,7 +54,7 @@ detailed_logger.setLevel(logging.INFO)
 # Московский часовой пояс
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
-# Конфигурация индексов с их логикой
+# Конфигурация индексов с их логикой (MCFTR оставлен в конфиге, но исключён из списка отслеживаемых)
 INDEX_CONFIG = {
     'IMOEX': {
         'name': 'Индекс МосБиржи',
@@ -121,7 +121,6 @@ class DataCache:
                 logger.info("Файл кэша не найден, будет создан новый")
         except json.JSONDecodeError as e:
             logger.error(f"❌ Ошибка парсинга JSON в файле кэша: {e}")
-            # FIX: Автоматический бэкап битого файла кэша
             try:
                 backup_file = self.cache_file.with_suffix('.bak')
                 self.cache_file.replace(backup_file)
@@ -205,7 +204,6 @@ class SignalHistory:
                 logger.info("Файл истории не найден, будет создан новый")
         except json.JSONDecodeError as e:
             logger.error(f"❌ Ошибка парсинга JSON в файле истории: {e}")
-            # FIX: Автоматический бэкап битого файла истории
             try:
                 backup_file = self.history_file.with_suffix('.bak')
                 self.history_file.replace(backup_file)
@@ -412,7 +410,8 @@ class FinalIndexBot:
         self.chat_id = chat_id
         logger.info("🚀 Инициализация FinalIndexBot")
         
-        self.indexes = ['IMOEX', 'MCFTR', 'CNYRUB_TOM', 'GLDRUB_TOM']
+        # Исключён MCFTR из списка отслеживаемых индексов
+        self.indexes = ['IMOEX', 'CNYRUB_TOM', 'GLDRUB_TOM']
         self.api = MoexIndexAPI()
         self.bot = Bot(token=telegram_token)
         self.history = SignalHistory()
@@ -474,9 +473,8 @@ class FinalIndexBot:
                 logger.info("Файл состояний не найден, будут созданы новые")
         except json.JSONDecodeError as e:
             logger.error(f"❌ Ошибка парсинга JSON в файле состояний: {e}")
-            # FIX: Автоматический бэкап битого файла состояний
             try:
-                states_file = Path("bot_states.json") # Ensure path is available
+                states_file = Path("bot_states.json")
                 backup_file = states_file.with_suffix('.bak')
                 states_file.replace(backup_file)
                 logger.warning(f"⚠️ Битая конфигурация перемещена в {backup_file}")
@@ -615,11 +613,23 @@ class FinalIndexBot:
             self.daily_stats['critical_movements_today'] += 1
             logger.info(f"🚨 Отправлено уведомление о критическом движении для {index}")
     
+    # Новая вспомогательная функция для определения статуса отображения
+    def _get_display_status(self, signal: str, prev_position: Optional[str]) -> str:
+        """Возвращает статус для отображения в таблице на основе текущего сигнала и предыдущей позиции"""
+        if "ОТКРЫТЬ" in signal:
+            return "ОТКРЫТЬ ХЕДЖ"
+        elif "ЗАКРЫТЬ" in signal:
+            return "ЗАКРЫТЬ ХЕДЖ"
+        elif "НЕТ СИГНАЛА" in signal and prev_position == 'hedge_open':
+            return "ДЕРЖАТЬ ХЕДЖ"
+        else:
+            return "---"
+    
     def format_signal_table(self, signals_data: List[Dict]) -> str:
-        """Форматирование таблицы сигналов"""
+        """Форматирование таблицы сигналов с новыми статусами"""
         # Определяем максимальные длины
         max_name_len = max(len(data['name']) for data in signals_data)
-        max_name_len = min(max_name_len, 20) # Ограничиваем имя для мобильных
+        max_name_len = min(max_name_len, 20)  # Ограничиваем имя для мобильных
         
         table_lines = []
         
@@ -629,10 +639,8 @@ class FinalIndexBot:
         # Начало блока кода для моноширинности
         table_lines.append("```")
         
-        # Шапка таблицы
-        # Используем сокращения для экономии места на мобильных
-        # Name | Price | Signal | %
-        header = f"{'ИНДЕКС':<{max_name_len}} {'ЦЕНА':>8} {'СИГНАЛ':>9} {'%':>5}"
+        # Шапка таблицы с увеличенной колонкой для сигнала (16 символов)
+        header = f"{'ИНДЕКС':<{max_name_len}} {'ЦЕНА':>8} {'СИГНАЛ':>16} {'%':>5}"
         table_lines.append(header)
         
         # Разделитель строго по длине шапки
@@ -641,40 +649,36 @@ class FinalIndexBot:
         for data in signals_data:
             name = data['name']
             price = data['price']
-            signal = data['signal']
             change = data['change']
+            signal = data['signal']
+            prev_position = data.get('prev_position')  # предыдущая позиция, добавленная в send_evening_report
             
             if len(name) > max_name_len:
                 display_name = name[:max_name_len-2] + ".."
             else:
                 display_name = name
             
-            # Форматируем сигнал (текст должен быть коротким для таблицы)
-            if "ОТКРЫТЬ" in signal:
-                signal_display = "ОТКР"
-            elif "ЗАКРЫТЬ" in signal:
-                signal_display = "ЗАКР"
-            else:
-                signal_display = "НЕТ"
+            # Получаем статус для отображения
+            display_status = self._get_display_status(signal, prev_position)
             
             # Форматируем изменение
             change_display = f"{change:+.1f}"
             
-            # Форматируем строку: Имя (влево), Цена (вправо), Сигнал (вправо), Изм (вправо)
-            line = f"{display_name:<{max_name_len}} {price:>8.2f} {signal_display:>9} {change_display:>5}"
+            # Формируем строку с выравниванием
+            line = f"{display_name:<{max_name_len}} {price:>8.2f} {display_status:>16} {change_display:>5}"
             table_lines.append(line)
         
-        table_lines.append("```") # Конец блока кода
+        table_lines.append("```")  # Конец блока кода
         
-        # Подсчет активных сигналов
-        active_signals = sum(1 for d in signals_data if "ХЕДЖ" in d['signal'])
-        table_lines.append(f"Сводка: {active_signals} активных из {len(signals_data)}")
+        # Подсчет активных сигналов (только открытые и закрытые)
+        active_signals = sum(1 for d in signals_data if "ХЕДЖ" in d['signal'] and d['signal'] != "ДЕРЖАТЬ ХЕДЖ")
+        table_lines.append(f"Сводка: {active_signals} новых сигналов из {len(signals_data)}")
         table_lines.append(f"Время: {datetime.now(MOSCOW_TZ).strftime('%H:%M, %d.%m.%Y')}")
         
         return "\n".join(table_lines)
     
     def format_action_recommendations(self, signals_data: List[Dict]) -> str:
-        """Форматирование рекомендаций по действиям"""
+        """Форматирование рекомендаций по действиям (без изменений)"""
         recommendations = []
         
         open_actions = [d for d in signals_data if d.get('action') == 'open']
@@ -698,7 +702,7 @@ class FinalIndexBot:
         return "\n".join(recommendations)
     
     def format_history_block(self, index: str) -> str:
-        """Форматирование блока истории для индекса"""
+        """Форматирование блока истории для индекса (без изменений)"""
         history_records = self.history.get_today_signals(index)
         if not history_records:
             return ""
@@ -706,11 +710,8 @@ class FinalIndexBot:
         history_lines = []
         index_name = INDEX_CONFIG.get(index, {}).get('name', index)
         
-        # FIX: Улучшенный визуальный стиль для истории (Code block)
         history_lines.append("```")
         
-        # Динамическая ширина рамки
-        # Min width 30, Max width based on name
         content_width = max(len(index_name) + 2, 32)
         
         history_lines.append(f"┌{'─' * content_width}┐")
@@ -732,12 +733,10 @@ class FinalIndexBot:
             else:
                 sig_short = "НЕТ"
             
-            # Формат строки: 10:00 | 2500.00 | ЗАКРЫТЬ
-            # Вычисляем отступы, чтобы заполнить content_width
-            # Структура: "| TIME | PRICE | SIGNAL |"
             row_content = f"{time_str} | {price:.2f} | {sig_short}"
-            padding = content_width - len(row_content) - 2 # -2 for borders
-            if padding < 0: padding = 0
+            padding = content_width - len(row_content) - 2
+            if padding < 0:
+                padding = 0
             
             history_lines.append(f"│ {row_content}{' ' * padding} │")
         
@@ -747,10 +746,13 @@ class FinalIndexBot:
         return "\n".join(history_lines)
     
     async def send_evening_report(self):
-        """Отправка вечернего отчета (19:10)"""
+        """Отправка вечернего отчета (19:10) с учётом предыдущих позиций"""
         logger.info("🌙 Отправка вечернего отчета...")
         
         try:
+            # Сохраняем предыдущие состояния до обновления
+            prev_states = {index: self.states[index].copy() for index in self.indexes}
+            
             signals_data = []
             critical_alerts = []
             
@@ -759,13 +761,17 @@ class FinalIndexBot:
                 if df is not None and len(df) >= 2:
                     signal, current_price, price_change, action = self.calculate_hedge_signal(df, index)
                     
+                    # Добавляем prev_position в данные для таблицы
+                    prev_position = prev_states[index]['position']
+                    
                     signals_data.append({
                         'index': index,
                         'name': INDEX_CONFIG.get(index, {}).get('name', index),
                         'price': current_price,
                         'signal': signal,
                         'change': price_change,
-                        'action': action
+                        'action': action,
+                        'prev_position': prev_position  # важно для определения статуса
                     })
                     
                     # Проверяем критическое движение
@@ -888,7 +894,6 @@ class FinalIndexBot:
             for index in self.indexes:
                 df = self.get_index_data(index)
                 if df is not None:
-                    # Просто получаем данные для обновления кэша
                     logger.debug(f"Данные обновлены для {index}")
             
             self.global_stats['total_checks'] += 1
@@ -903,31 +908,20 @@ class FinalIndexBot:
 def schedule_moscow_time(time_str: str):
     """Конвертирует московское время в локальное для планировщика"""
     try:
-        # Получаем текущее время в московском часовом поясе
         now_moscow = datetime.now(MOSCOW_TZ)
-        
-        # Разбираем время из строки
         hour, minute = map(int, time_str.split(':'))
-        
-        # Создаем datetime на сегодня с указанным временем в московском поясе
         scheduled_time_moscow = now_moscow.replace(
             hour=hour,
             minute=minute,
             second=0,
             microsecond=0
         )
-        
-        # Если указанное время уже прошло сегодня, планируем на завтра
         if scheduled_time_moscow < now_moscow:
             scheduled_time_moscow += timedelta(days=1)
-        
-        # Конвертируем в локальное время системы
         local_time = scheduled_time_moscow.astimezone()
         return local_time.strftime('%H:%M')
-    
     except Exception as e:
         logger.error(f"❌ Ошибка конвертации времени {time_str}: {e}")
-        # Возвращаем время как есть в случае ошибки
         return time_str
 
 
@@ -937,7 +931,7 @@ async def main():
         
         bot = FinalIndexBot(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID)
         
-        # Приветственное сообщение
+        # Приветственное сообщение (обновлено, исключён MCFTR)
         welcome_msg = (
             f"🤖 *БОТ СИГНАЛОВ ИНДЕКСОВ MOEX ЗАПУЩЕН*\n\n"
             f"📈 *Отслеживаемые индексы:*\n"
@@ -958,7 +952,7 @@ async def main():
             f" • 10:10 - тихая проверка (без уведомлений)\n"
             f" • 00:10 - сброс статистики\n\n"
             f"🎯 *Что вы получите:*\n"
-            f" 1. Четкие рекомендации: ОТКРЫТЬ или ЗАКРЫТЬ хедж\n"
+            f" 1. Четкие статусы: ОТКРЫТЬ, ДЕРЖАТЬ, ЗАКРЫТЬ\n"
             f" 2. Только важные уведомления\n"
             f" 3. История сегодняшних сигналов\n"
             f" 4. Статистика за день\n"
@@ -966,9 +960,6 @@ async def main():
         
         await bot.send_message(welcome_msg)
         logger.info("✅ Приветственное сообщение отправлено")
-        
-        # НЕ выполняем тихую проверку сразу при запуске
-        # Она будет выполнена по расписанию в 10:10
         
         # Вычисляем локальное время для расписания
         silent_check_time = schedule_moscow_time("10:10")
@@ -979,7 +970,7 @@ async def main():
         logger.info(f"⏰ Время вечернего отчета (локальное): {evening_report_time}")
         logger.info(f"⏰ Время сброса статистики (локальное): {reset_stats_time}")
         
-        # Устанавливаем расписание с вычисленным локальным временем
+        # Устанавливаем расписание
         schedule.every().day.at(silent_check_time).do(
             lambda: asyncio.create_task(bot.perform_silent_check())
         )
