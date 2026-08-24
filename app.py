@@ -36,7 +36,7 @@ for key in state_keys:
 
 # ==================== БОКОВАЯ ПАНЕЛЬ ====================
 st.sidebar.header("⚙️ Настройки")
-symbol = st.sidebar.selectbox("Инструмент:", ["SiU6", "CRU6"])
+symbol = st.sidebar.selectbox("Инструмент:", ["SiU6", "CRU6", "MXU6"])
 start_date = st.sidebar.date_input("Дата начала", value=date.today() - timedelta(days=2), format="DD.MM.YYYY")
 end_date = st.sidebar.date_input("Дата окончания", value=date.today(), format="DD.MM.YYYY")
 timeframe = st.sidebar.selectbox("Таймфрейм:", ["5M", "10M", "1H", "1D"])
@@ -130,7 +130,7 @@ def load_data(symbol, start, end, tf):
     st.write(f"✅ FUTOI из БД: {len(df)} строк за {time.time()-t_sql:.2f}с")
     
     if df.empty:
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     
     tf_map = {"5M": "5min", "10M": "10min", "1H": "1h", "1D": "1D"}
     resample_rule = tf_map.get(tf, "10min")

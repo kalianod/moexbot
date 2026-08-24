@@ -17,7 +17,7 @@ import pandas as pd
 import time
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'futoi.db')
-SYMBOLS = ["SiU6", "CRU6"]
+SYMBOLS = ["SiU6", "CRU6", "MXU6"]
 
 load_dotenv()
 session.TOKEN = os.getenv("MOEXALGOPACK_TOKEN")

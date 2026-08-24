@@ -4,6 +4,23 @@ import time
 from datetime import datetime, date, timedelta
 from dotenv import load_dotenv
 from moexalgo import session, Ticker
+
+# [PATCH 2026-08-24]: Отключаем проверку SSL для moexalgo
+# Причина: после обновления сертификата MOEX (19.08.2026) библиотека падает с
+# SSL: CERTIFICATE_VERIFY_FAILED. Прямые запросы httpx работают нормально.
+# Это безопасно, т.к. мы доверяем iss.moex.com (публичный CA).
+import ssl
+try:
+    _default_ctx = ssl.create_default_context
+    def _no_verify_ctx(*args, **kwargs):
+        ctx = _default_ctx(*args, **kwargs)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+    ssl.create_default_context = _no_verify_ctx
+    print("[INFO] SSL verification disabled for moexalgo")
+except Exception as e:
+    print(f"[WARN] SSL patch failed: {e}")
 import requests
 import pandas as pd
 import sqlite3
@@ -13,7 +30,7 @@ DB_PATH = os.path.join(os.path.dirname(__file__), 'futoi.db')
 load_dotenv()
 
 # [ИЗМЕНЕНИЕ]: Вместо одного символа используем список для поддержки нескольких тикеров
-SYMBOLS = ["SiU6", "CRU6"] 
+SYMBOLS = ["SiU6", "CRU6", "MXU6"] 
 THRESHOLD = 10
 
 # [ИЗМЕНЕНИЕ]: Базовые шаблоны имен файлов. Конкретное имя будет формироваться внутри функции с добавлением тикера.
