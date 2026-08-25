@@ -255,6 +255,12 @@ else:
         st.warning("⚠️ Нет активных свечей за выбранный период (все свечи плоские).")
     else:
         is_mobile = 'Mobile' in st.context.headers.get('User-Agent', '') if st.context.headers else False
+
+        # [OPT 2026-08-25] Защита от зависаний: >2000 свечей — маркеры отключены
+        if len(df_candles) > 2000:
+            st.warning(f"⚠️ {len(df_candles)} свечей (лимит 2000) — маркеры отключены для ускорения. Сузьте диапазон дат.")
+            df_fiz = pd.DataFrame()
+            df_yur = pd.DataFrame()
         
         # Легенда маркеров
         st.markdown("""
