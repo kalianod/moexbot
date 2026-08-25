@@ -61,10 +61,6 @@ annotation_threshold_fiz = st.sidebar.slider("Порог для физлиц:", 
 annotation_threshold_yur = st.sidebar.slider("Порог для юрлиц:", min_value=10, max_value=200, value=50)
 
 st.sidebar.markdown("---")
-anomaly_threshold_fiz = st.sidebar.slider("Порог аномалий для физлиц:", min_value=50, max_value=1000, value=200)
-anomaly_threshold_yur = st.sidebar.slider("Порог аномалий для юрлиц:", min_value=50, max_value=1000, value=100)
-
-st.sidebar.markdown("---")
 # [НОВОЕ 2026-08-19] Концентрация: крупные сделки малым числом счетов
 concentration_threshold_accounts = st.sidebar.slider("Концентрация: макс. изменение счетов:", min_value=1, max_value=50, value=10)
 concentration_threshold_contracts = st.sidebar.slider("Концентрация: мин. изменение контрактов:", min_value=100, max_value=5000, value=1000)
@@ -268,11 +264,7 @@ else:
             <span>▼ <b style="color:#EF5350">красн.</b> — Ф шорт ↑</span>
             <span>● <b style="color:#26A69A">зел.</b> — Ю лонг ↑</span>
             <span>● <b style="color:#EF5350">красн.</b> — Ю шорт ↑</span>
-            <span>◆ <b style="color:#26A69A">зел.</b> — Аномалия Ф: покупки + OI</span>
-    <span>◆ <b style="color:#EF5350">красн.</b> — Аномалия Ф: продажи + OI</span>
-    <span>■ <b style="color:#26A69A">зел.</b> — Аномалия Ю: покупки + OI</span>
-    <span>■ <b style="color:#EF5350">красн.</b> — Аномалия Ю: продажи + OI</span>
-    <span>★ <b style="color:#26A69A">зел.</b> — Концентрация Ф лонг (мало счетов, много контр.)</span>
+            <span>★ <b style="color:#26A69A">зел.</b> — Концентрация Ф лонг (мало счетов, много контр.)</span>
     <span>★ <b style="color:#EF5350">красн.</b> — Концентрация Ф шорт (мало счетов, много контр.)</span>
     <span>◉ <b style="color:#26A69A">зел.</b> — Юр: доля >50% + много контрактов (long)</span>
     <span>◉ <b style="color:#EF5350">красн.</b> — Юр: доля >50% + много контрактов (short)</span>
@@ -430,64 +422,11 @@ else:
                     if pd.notna(delta) and delta < -annotation_threshold_yur:
                         add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#EF5350', 18)
 
-        # ========== [НОВОЕ 2026-08-19] АНОМАЛИИ: иконки при наборе OI ==========
-        # Физлица - ромб (diamond), Юрлица - квадрат (square)
-        # Покупки - зелёный, Продажи - красный
-        # Условие: дельта позиций > порога аномалии И рост открытого интереса (d_oi > 0)
-        anomaly_count = [0]
-
+        # Общий словарь d_oi для концентрации и сигнала юрлиц
         d_oi_map = {}
         if not df_bar_stats.empty:
             for _, r in df_bar_stats.iterrows():
                 d_oi_map[pd.Timestamp(r['datetime']).floor('5min')] = r['d_oi']
-
-        def add_anomaly_marker(candle_time, y_pos, delta, marker_symbol, marker_color, y_shift, label):
-            fig.add_trace(go.Scatter(
-                x=[candle_time], y=[y_pos], mode='markers',
-                marker=dict(symbol=marker_symbol, size=16, color=marker_color,
-                            line=dict(width=2, color='white')),
-                showlegend=False,
-                hovertemplate=f"⚠️ АНОМАЛИЯ: {label} {int(delta):+d}<extra></extra>"
-            ), row=1, col=1)
-            fig.add_annotation(
-                x=candle_time, y=y_pos, text=f"{int(delta):+d}", showarrow=False,
-                font=dict(size=11, color='white', family='Arial, sans-serif'),
-                bgcolor='rgba(20, 20, 20, 0.9)', bordercolor=marker_color,
-                borderwidth=2, borderpad=4, yshift=y_shift, row=1, col=1
-            )
-            anomaly_count[0] += 1
-
-        # Физлица: ромб
-        if not df_fiz.empty and 'systime' in df_fiz.columns:
-            if 'delta_long' not in df_fiz.columns: df_fiz['delta_long'] = df_fiz['pos_long_num'].diff()
-            if 'delta_short' not in df_fiz.columns: df_fiz['delta_short'] = df_fiz['pos_short_num'].diff()
-            for idx, candle in df_candles.iterrows():
-                mask = (df_fiz['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
-                if mask.any():
-                    d_long = df_fiz[mask].iloc[-1]['delta_long']
-                    d_short = df_fiz[mask].iloc[-1]['delta_short']
-                    d_oi = d_oi_map.get(pd.Timestamp(candle['begin']).floor('5min'))
-                    if d_oi is not None and pd.notna(d_oi) and d_oi > 0:
-                        if pd.notna(d_long) and d_long > anomaly_threshold_fiz:
-                            add_anomaly_marker(candle['begin'], candle['high'], d_long, 'diamond', '#26A69A', 45, 'Физ: покупки + набор OI')
-                        if pd.notna(d_short) and d_short > anomaly_threshold_fiz:
-                            add_anomaly_marker(candle['begin'], candle['low'], d_short, 'diamond', '#EF5350', -45, 'Физ: продажи + набор OI')
-
-        # Юрлица: квадрат
-        if not df_yur.empty and 'systime' in df_yur.columns:
-            if 'delta_long' not in df_yur.columns: df_yur['delta_long'] = df_yur['pos_long_num'].diff()
-            if 'delta_short' not in df_yur.columns: df_yur['delta_short'] = df_yur['pos_short_num'].diff()
-            for idx, candle in df_candles.iterrows():
-                mask = (df_yur['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
-                if mask.any():
-                    d_long = df_yur[mask].iloc[-1]['delta_long']
-                    d_short = df_yur[mask].iloc[-1]['delta_short']
-                    d_oi = d_oi_map.get(pd.Timestamp(candle['begin']).floor('5min'))
-                    if d_oi is not None and pd.notna(d_oi) and d_oi > 0:
-                        if pd.notna(d_long) and d_long > anomaly_threshold_yur:
-                            add_anomaly_marker(candle['begin'], candle['high'], d_long, 'square', '#26A69A', 45, 'Юр: покупки + набор OI')
-                        if pd.notna(d_short) and d_short > anomaly_threshold_yur:
-                            add_anomaly_marker(candle['begin'], candle['low'], d_short, 'square', '#EF5350', -45, 'Юр: продажи + набор OI')
 
         # ========== [НОВОЕ 2026-08-19] КОНЦЕНТРАЦИЯ: крупные сделки малым числом счетов ==========
         # Условие: |дельта счетов| <= порог AND дельта контрактов >= порог AND рост OI (d_oi > 0)
@@ -606,9 +545,6 @@ else:
         
         if annotation_count[0] > 0:
             st.info(f"💡 Показано аннотаций: {annotation_count[0]}")
-
-        if anomaly_count[0] > 0:
-            st.warning(f"⚠️ Обнаружено аномалий (набор OI): {anomaly_count[0]}")
 
         if concentration_count[0] > 0:
             st.info(f"🎯 Обнаружено концентраций (мало счетов, много контрактов): {concentration_count[0]}")
