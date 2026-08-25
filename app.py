@@ -7,6 +7,21 @@ from datetime import datetime, date, timedelta
 import os
 from dotenv import load_dotenv
 from moexalgo import Ticker, session
+
+# [PATCH 2026-08-24]: Отключаем проверку SSL для moexalgo (как в коллекторе)
+# Причина: MOEX обновил сертификат 19.08.2026, библиотека падает с CERTIFICATE_VERIFY_FAILED.
+# Это безопасно: iss.moex.com — публичный сайт с валидным сертификатом ZeroSSL.
+import ssl
+try:
+    _default_ctx = ssl.create_default_context
+    def _no_verify_ctx(*args, **kwargs):
+        ctx = _default_ctx(*args, **kwargs)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+    ssl.create_default_context = _no_verify_ctx
+except Exception:
+    pass
 from streamlit_autorefresh import st_autorefresh
 
 load_dotenv()
@@ -53,6 +68,11 @@ st.sidebar.markdown("---")
 # [НОВОЕ 2026-08-19] Концентрация: крупные сделки малым числом счетов
 concentration_threshold_accounts = st.sidebar.slider("Концентрация: макс. изменение счетов:", min_value=1, max_value=50, value=10)
 concentration_threshold_contracts = st.sidebar.slider("Концентрация: мин. изменение контрактов:", min_value=100, max_value=5000, value=1000)
+
+st.sidebar.markdown("---")
+# [НОВОЕ 2026-08-24] Сигнал юрлиц: доля >50% + много контрактов
+yur_share_threshold = st.sidebar.slider("Юрлица: мин. доля (%):", min_value=50, max_value=100, value=50)
+yur_contracts_threshold = st.sidebar.slider("Юрлица: мин. контрактов:", min_value=100, max_value=10000, value=1000)
 
 st.sidebar.markdown("---")
 st.sidebar.caption(f"🔄 Автообновление: 5 мин")
@@ -254,6 +274,8 @@ else:
     <span>■ <b style="color:#EF5350">красн.</b> — Аномалия Ю: продажи + OI</span>
     <span>★ <b style="color:#26A69A">зел.</b> — Концентрация Ф лонг (мало счетов, много контр.)</span>
     <span>★ <b style="color:#EF5350">красн.</b> — Концентрация Ф шорт (мало счетов, много контр.)</span>
+    <span>◉ <b style="color:#26A69A">зел.</b> — Юр: доля >50% + много контрактов (long)</span>
+    <span>◉ <b style="color:#EF5350">красн.</b> — Юр: доля >50% + много контрактов (short)</span>
     <span style="margin-left:auto; color:#666">💡 наведите на маркер для деталей</span>
         </div>
         """, unsafe_allow_html=True)
@@ -512,6 +534,54 @@ else:
                             if abs(d_short_num) <= concentration_threshold_accounts and d_short_contracts >= concentration_threshold_contracts:
                                 add_concentration_marker(candle['begin'], candle['low'], d_short_contracts, '#EF5350', -70, 'Физ: концентрация шорт')
 
+        # ========== [НОВОЕ 2026-08-24] СИГНАЛ ЮРЛИЦ: доля >50% + много контрактов ==========
+        # Доля юрлиц = clip(dYUR,0) / (clip(dFIZ,0) + clip(dYUR,0)) * 100 (проверенная формула "Лицо")
+        yur_signal_count = [0]
+
+        def add_yur_share_marker(candle_time, y_pos, delta_contracts, share_pct, marker_color, y_shift, label):
+            fig.add_trace(go.Scatter(
+                x=[candle_time], y=[y_pos], mode='markers',
+                marker=dict(symbol='circle-dot', size=16, color=marker_color,
+                            line=dict(width=2, color='white')),
+                showlegend=False,
+                hovertemplate=f"🏦 {label}: {share_pct:.0f}% | {int(delta_contracts):+d} контр.<extra></extra>"
+            ), row=1, col=1)
+            fig.add_annotation(
+                x=candle_time, y=y_pos, text=f"{share_pct:.0f}%", showarrow=False,
+                font=dict(size=11, color='white', family='Arial, sans-serif'),
+                bgcolor='rgba(20, 20, 20, 0.9)', bordercolor=marker_color,
+                borderwidth=2, borderpad=4, yshift=y_shift, row=1, col=1
+            )
+            yur_signal_count[0] += 1
+
+        if not df_fiz.empty and not df_yur.empty and 'systime' in df_fiz.columns and 'systime' in df_yur.columns:
+            if 'delta_long_contracts' not in df_fiz.columns: df_fiz['delta_long_contracts'] = df_fiz['pos_long'].diff()
+            if 'delta_short_contracts' not in df_fiz.columns: df_fiz['delta_short_contracts'] = df_fiz['pos_short'].diff()
+            if 'delta_long_contracts' not in df_yur.columns: df_yur['delta_long_contracts'] = df_yur['pos_long'].diff()
+            if 'delta_short_contracts' not in df_yur.columns: df_yur['delta_short_contracts'] = df_yur['pos_short'].diff()
+            for idx, candle in df_candles.iterrows():
+                mask_f = (df_fiz['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
+                mask_y = (df_yur['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
+                if mask_f.any() and mask_y.any():
+                    f_long = df_fiz[mask_f].iloc[-1]['delta_long_contracts']
+                    f_short = df_fiz[mask_f].iloc[-1]['delta_short_contracts']
+                    y_long = df_yur[mask_y].iloc[-1]['delta_long_contracts']
+                    y_short = df_yur[mask_y].iloc[-1]['delta_short_contracts']
+                    # LONG: доля юрлиц в росте long
+                    if pd.notna(f_long) and pd.notna(y_long):
+                        num = max(y_long, 0); den = max(f_long, 0) + num
+                        if den > 0:
+                            share = num / den * 100
+                            if share > yur_share_threshold and y_long >= yur_contracts_threshold:
+                                add_yur_share_marker(candle['begin'], candle['high'], y_long, share, '#26A69A', 95, 'Юр: доля в росте long')
+                    # SHORT: доля юрлиц в росте short
+                    if pd.notna(f_short) and pd.notna(y_short):
+                        num = max(y_short, 0); den = max(f_short, 0) + num
+                        if den > 0:
+                            share = num / den * 100
+                            if share > yur_share_threshold and y_short >= yur_contracts_threshold:
+                                add_yur_share_marker(candle['begin'], candle['low'], y_short, share, '#EF5350', -95, 'Юр: доля в росте short')
+
         fig.update_layout(
             height=750 if is_mobile else 1000, template="plotly_dark",
             hovermode='x unified',
@@ -542,6 +612,9 @@ else:
 
         if concentration_count[0] > 0:
             st.info(f"🎯 Обнаружено концентраций (мало счетов, много контрактов): {concentration_count[0]}")
+
+        if yur_signal_count[0] > 0:
+            st.info(f"🏦 Сигналов юрлиц (доля >50% + много контрактов): {yur_signal_count[0]}")
 
 # ==================== ЭКСПОРТ CSV (В САМОМ НИЗУ, 1 КЛИК) ====================
 if not hide_export and (not df_fiz.empty or not df_yur.empty):
