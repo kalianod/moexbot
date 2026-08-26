@@ -134,9 +134,13 @@ def build_table(df_group):
     cols = ['pos_long', 'pos_short', 'pos_long_num', 'pos_short_num']
     if mode == "По бару (дельты)":
         d = r[cols].diff().dropna()
+        d['наборL'] = d['pos_long'].clip(lower=0)
+        d['наборS'] = (-d['pos_short']).clip(lower=0)
     else:
         first = r[cols].iloc[0]
         d = (r[cols] - first).iloc[1:]
+        d['наборL'] = float('nan')
+        d['наборS'] = float('nan')
     d['short_abs'] = -d['pos_short']
     d['short_num'] = d['pos_short_num']
     d = d.rename(columns={
@@ -144,7 +148,7 @@ def build_table(df_group):
         'short_abs': 'Контракты.1', 'short_num': 'Счета.1'})
     d.index = d.index - pd.Timedelta(minutes=5)  # метка = начало бара
     d.index.name = 'Бар'
-    return d[['Контракты', 'Счета', 'Контракты.1', 'Счета.1']]
+    return d[['Контракты', 'Счета', 'Контракты.1', 'Счета.1', 'наборL', 'наборS']]
 
 tbl_fiz = build_table(fiz)
 tbl_yur = build_table(yur)
@@ -153,11 +157,20 @@ if tbl_fiz.empty or tbl_yur.empty:
     st.warning("⚠️ Недостаточно данных для построения таблицы.")
     st.stop()
 
+bid_total = tbl_fiz['наборL'].fillna(0) + tbl_yur['наборL'].fillna(0)
+ask_total = tbl_fiz['наборS'].fillna(0) + tbl_yur['наборS'].fillna(0)
+face_fiz = (tbl_fiz['наборL'].fillna(0) / bid_total.replace(0, float('nan')) * 100).fillna(0).round(0)
+face_yur = (tbl_yur['наборL'].fillna(0) / bid_total.replace(0, float('nan')) * 100).fillna(0).round(0)
+
 final = pd.DataFrame({
     'Ф Лонг (контр)': tbl_fiz['Контракты'], 'Ф Лонг (счета)': tbl_fiz['Счета'],
     'Ф Шорт (контр)': tbl_fiz['Контракты.1'], 'Ф Шорт (счета)': tbl_fiz['Счета.1'],
     'Ю Лонг (контр)': tbl_yur['Контракты'], 'Ю Лонг (счета)': tbl_yur['Счета'],
     'Ю Шорт (контр)': tbl_yur['Контракты.1'], 'Ю Шорт (счета)': tbl_yur['Счета.1'],
+    'Набор лонгов (5м)': bid_total,
+    'Набор шортов (5м)': ask_total,
+    'Лицо Ф %': face_fiz,
+    'Лицо Ю %': face_yur,
 })
 
 def color_delta(val):
