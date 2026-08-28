@@ -285,7 +285,7 @@ else:
         annotation_offsets = {}
         annotation_count = [0]
 
-        def add_marker_with_text(candle_time, y_pos, delta, marker_symbol, marker_color, base_yshift):
+        def add_marker_with_text(candle_time, y_pos, delta, marker_symbol, marker_color, base_yshift, marker_size=None):
             key = str(candle_time)
             offset_count = annotation_offsets.get(key, 0)
             direction = 1 if base_yshift > 0 else -1
@@ -295,7 +295,7 @@ else:
             # 1. Маркер
             fig.add_trace(go.Scatter(
                 x=[candle_time], y=[y_pos], mode='markers',
-                marker=dict(symbol=marker_symbol, size=12 if 'triangle' in marker_symbol else 10, 
+                marker=dict(symbol=marker_symbol, size=marker_size if marker_size else (12 if 'triangle' in marker_symbol else 10), 
                             color=marker_color, line=dict(width=0.5 if 'triangle' in marker_symbol else 1, color='white')),
                 showlegend=False, hovertemplate=f"Дельта: {int(delta):+d}<extra></extra>"
             ), row=1, col=1)
@@ -357,79 +357,128 @@ else:
                 marker_color=vol_colors, showlegend=False, opacity=0.5
             ), row=2, col=1)
 
+        # [NEW] Динамический размер маркера: аномальность контрактов к среднему по дню
+        def dyn_size(d, avg):
+            if pd.notna(d) and pd.notna(avg) and avg > 0:
+                ratio = abs(d) / avg
+                return int(12 + 4 * min(max(ratio - 1, 0), 3))   # 12px -> 24px
+            return 12
+        for _g in (df_fiz, df_yur):
+            if not _g.empty and 'systime' in _g.columns:
+                _g['d_long_c'] = _g['pos_long'].diff()
+                _g['d_short_c'] = _g['pos_short'].diff()
+                _g['avg_long_c'] = _g['d_long_c'].abs().expanding(min_periods=3).mean().shift(1)
+                _g['avg_short_c'] = _g['d_short_c'].abs().expanding(min_periods=3).mean().shift(1)
+
         # ========== ФИЗЛИЦА ==========
         if st.session_state.show_fiz_buy_plus and not df_fiz.empty and 'systime' in df_fiz.columns:
             df_fiz['delta_long'] = df_fiz['pos_long_num'].diff()
+            df_fiz['delta_long_contracts'] = df_fiz['pos_long'].diff()
             for idx, candle in df_candles.iterrows():
                 mask = (df_fiz['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_fiz[mask].iloc[-1]['delta_long']
+                    delta_contracts = df_fiz[mask].iloc[-1]['delta_long_contracts']
                     if pd.notna(delta) and delta > annotation_threshold_fiz:
-                        add_marker_with_text(candle['begin'], candle['high'], delta, 'triangle-up', '#26A69A', 18)
+                        # Фильтр: контрактов >= 1.5 * счетов
+                        if pd.notna(delta_contracts) and delta_contracts >= 1.5 * delta:
+                            _avg = df_fiz[mask].iloc[-1]['avg_long_c']
+                            add_marker_with_text(candle['begin'], candle['high'], delta, 'triangle-up', '#26A69A', 18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_fiz_sell_plus and not df_fiz.empty and 'systime' in df_fiz.columns:
             if 'delta_short' not in df_fiz.columns: df_fiz['delta_short'] = df_fiz['pos_short_num'].diff()
+            if 'delta_short_contracts' not in df_fiz.columns: df_fiz['delta_short_contracts'] = df_fiz['pos_short'].diff()
             for idx, candle in df_candles.iterrows():
                 mask = (df_fiz['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_fiz[mask].iloc[-1]['delta_short']
+                    delta_contracts = df_fiz[mask].iloc[-1]['delta_short_contracts']
                     if pd.notna(delta) and delta > annotation_threshold_fiz:
-                        add_marker_with_text(candle['begin'], candle['low'], delta, 'triangle-down', '#EF5350', -18)
+                        # Фильтр: |контрактов| >= 1.5 * |счетов| (оба отрицательные для шорта)
+                        if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
+                            _avg = df_fiz[mask].iloc[-1]['avg_short_c']
+                            add_marker_with_text(candle['begin'], candle['low'], delta, 'triangle-down', '#EF5350', -18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_fiz_buy_minus and not df_fiz.empty and 'systime' in df_fiz.columns:
             if 'delta_long' not in df_fiz.columns: df_fiz['delta_long'] = df_fiz['pos_long_num'].diff()
+            if 'delta_long_contracts' not in df_fiz.columns: df_fiz['delta_long_contracts'] = df_fiz['pos_long'].diff()
             for idx, candle in df_candles.iterrows():
                 mask = (df_fiz['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_fiz[mask].iloc[-1]['delta_long']
+                    delta_contracts = df_fiz[mask].iloc[-1]['delta_long_contracts']
                     if pd.notna(delta) and delta < -annotation_threshold_fiz:
-                        add_marker_with_text(candle['begin'], candle['high'], delta, 'triangle-down', '#26A69A', -18)
+                        # Фильтр: |контрактов| >= 1.5 * |счетов|
+                        if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
+                            _avg = df_fiz[mask].iloc[-1]['avg_long_c']
+                            add_marker_with_text(candle['begin'], candle['high'], delta, 'triangle-down', '#26A69A', -18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_fiz_sell_minus and not df_fiz.empty and 'systime' in df_fiz.columns:
             if 'delta_short' not in df_fiz.columns: df_fiz['delta_short'] = df_fiz['pos_short_num'].diff()
+            if 'delta_short_contracts' not in df_fiz.columns: df_fiz['delta_short_contracts'] = df_fiz['pos_short'].diff()
             for idx, candle in df_candles.iterrows():
                 mask = (df_fiz['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_fiz[mask].iloc[-1]['delta_short']
+                    delta_contracts = df_fiz[mask].iloc[-1]['delta_short_contracts']
                     if pd.notna(delta) and delta < -annotation_threshold_fiz:
-                        add_marker_with_text(candle['begin'], candle['low'], delta, 'triangle-up', '#EF5350', 18)
+                        # Фильтр: |контрактов| >= 1.5 * |счетов|
+                        if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
+                            _avg = df_fiz[mask].iloc[-1]['avg_short_c']
+                            add_marker_with_text(candle['begin'], candle['low'], delta, 'triangle-up', '#EF5350', 18, dyn_size(delta_contracts, _avg))
 
         # ========== ЮРЛИЦА ==========
         if st.session_state.show_yur_buy_plus and not df_yur.empty and 'systime' in df_yur.columns:
             df_yur['delta_long'] = df_yur['pos_long_num'].diff()
+            df_yur['delta_long_contracts'] = df_yur['pos_long'].diff()
             for idx, candle in df_candles.iterrows():
                 mask = (df_yur['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_yur[mask].iloc[-1]['delta_long']
+                    delta_contracts = df_yur[mask].iloc[-1]['delta_long_contracts']
                     if pd.notna(delta) and delta > annotation_threshold_yur:
-                        add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#26A69A', 18)
+                        if pd.notna(delta_contracts) and delta_contracts >= 1.5 * delta:
+                            _avg = df_yur[mask].iloc[-1]['avg_long_c']
+                            add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#26A69A', 18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_yur_sell_plus and not df_yur.empty and 'systime' in df_yur.columns:
             if 'delta_short' not in df_yur.columns: df_yur['delta_short'] = df_yur['pos_short_num'].diff()
+            if 'delta_short_contracts' not in df_yur.columns: df_yur['delta_short_contracts'] = df_yur['pos_short'].diff()
             for idx, candle in df_candles.iterrows():
                 mask = (df_yur['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_yur[mask].iloc[-1]['delta_short']
+                    delta_contracts = df_yur[mask].iloc[-1]['delta_short_contracts']
                     if pd.notna(delta) and delta > annotation_threshold_yur:
-                        add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#EF5350', -18)
+                        if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
+                            _avg = df_yur[mask].iloc[-1]['avg_short_c']
+                            add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#EF5350', -18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_yur_buy_minus and not df_yur.empty and 'systime' in df_yur.columns:
             if 'delta_long' not in df_yur.columns: df_yur['delta_long'] = df_yur['pos_long_num'].diff()
+            if 'delta_long_contracts' not in df_yur.columns: df_yur['delta_long_contracts'] = df_yur['pos_long'].diff()
             for idx, candle in df_candles.iterrows():
                 mask = (df_yur['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_yur[mask].iloc[-1]['delta_long']
+                    delta_contracts = df_yur[mask].iloc[-1]['delta_long_contracts']
                     if pd.notna(delta) and delta < -annotation_threshold_yur:
-                        add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#26A69A', -18)
+                        if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
+                            _avg = df_yur[mask].iloc[-1]['avg_long_c']
+                            add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#26A69A', -18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_yur_sell_minus and not df_yur.empty and 'systime' in df_yur.columns:
             if 'delta_short' not in df_yur.columns: df_yur['delta_short'] = df_yur['pos_short_num'].diff()
+            if 'delta_short_contracts' not in df_yur.columns: df_yur['delta_short_contracts'] = df_yur['pos_short'].diff()
             for idx, candle in df_candles.iterrows():
                 mask = (df_yur['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_yur[mask].iloc[-1]['delta_short']
+                    delta_contracts = df_yur[mask].iloc[-1]['delta_short_contracts']
                     if pd.notna(delta) and delta < -annotation_threshold_yur:
-                        add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#EF5350', 18)
+                        if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
+                            _avg = df_yur[mask].iloc[-1]['avg_short_c']
+                            add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#EF5350', 18, dyn_size(delta_contracts, _avg))
 
         # Общий словарь d_oi для концентрации и сигнала юрлиц
         d_oi_map = {}
