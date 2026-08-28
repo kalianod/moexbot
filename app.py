@@ -39,7 +39,8 @@ state_keys = [
     'show_clusters', 'show_fiz_buy_plus', 'show_fiz_sell_plus',
     'show_fiz_buy_minus', 'show_fiz_sell_minus',
     'show_yur_buy_plus', 'show_yur_sell_plus',
-    'show_yur_buy_minus', 'show_yur_sell_minus', 'show_profile_oi'
+    'show_yur_buy_minus', 'show_yur_sell_minus', 'show_profile_oi',
+    'show_concentration', 'show_yur_signal'
 ]
 
 query_params = st.query_params
@@ -84,7 +85,7 @@ hide_export = st.query_params.get('hide_export', 'false').lower() == 'true'
 
 # ==================== КНОПКИ ФИЛЬТРОВ ====================
 st.markdown("---")
-btn_cols = st.columns(10)
+btn_cols = st.columns(12)
 
 buttons_config = [
     ("btn_clusters", "show_clusters", "Кластера Ф/Ю"),
@@ -97,6 +98,8 @@ buttons_config = [
     ("btn_yur_buy_minus", "show_yur_buy_minus", "Ю buy -"),
     ("btn_yur_sell_minus", "show_yur_sell_minus", "Ю sell -"),
     ("btn_profile_oi", "show_profile_oi", "Профиль OI"),
+    ("btn_concentration", "show_concentration", "Концентрация"),
+    ("btn_yur_signal", "show_yur_signal", "Сигнал юрлиц"),
 ]
 
 # Семантика цвета кнопок (эмодзи) + Сброс
@@ -358,7 +361,7 @@ else:
         if st.session_state.show_fiz_buy_plus and not df_fiz.empty and 'systime' in df_fiz.columns:
             df_fiz['delta_long'] = df_fiz['pos_long_num'].diff()
             for idx, candle in df_candles.iterrows():
-                mask = (df_fiz['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
+                mask = (df_fiz['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_fiz[mask].iloc[-1]['delta_long']
                     if pd.notna(delta) and delta > annotation_threshold_fiz:
@@ -367,7 +370,7 @@ else:
         if st.session_state.show_fiz_sell_plus and not df_fiz.empty and 'systime' in df_fiz.columns:
             if 'delta_short' not in df_fiz.columns: df_fiz['delta_short'] = df_fiz['pos_short_num'].diff()
             for idx, candle in df_candles.iterrows():
-                mask = (df_fiz['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
+                mask = (df_fiz['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_fiz[mask].iloc[-1]['delta_short']
                     if pd.notna(delta) and delta > annotation_threshold_fiz:
@@ -376,7 +379,7 @@ else:
         if st.session_state.show_fiz_buy_minus and not df_fiz.empty and 'systime' in df_fiz.columns:
             if 'delta_long' not in df_fiz.columns: df_fiz['delta_long'] = df_fiz['pos_long_num'].diff()
             for idx, candle in df_candles.iterrows():
-                mask = (df_fiz['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
+                mask = (df_fiz['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_fiz[mask].iloc[-1]['delta_long']
                     if pd.notna(delta) and delta < -annotation_threshold_fiz:
@@ -385,7 +388,7 @@ else:
         if st.session_state.show_fiz_sell_minus and not df_fiz.empty and 'systime' in df_fiz.columns:
             if 'delta_short' not in df_fiz.columns: df_fiz['delta_short'] = df_fiz['pos_short_num'].diff()
             for idx, candle in df_candles.iterrows():
-                mask = (df_fiz['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
+                mask = (df_fiz['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_fiz[mask].iloc[-1]['delta_short']
                     if pd.notna(delta) and delta < -annotation_threshold_fiz:
@@ -395,7 +398,7 @@ else:
         if st.session_state.show_yur_buy_plus and not df_yur.empty and 'systime' in df_yur.columns:
             df_yur['delta_long'] = df_yur['pos_long_num'].diff()
             for idx, candle in df_candles.iterrows():
-                mask = (df_yur['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
+                mask = (df_yur['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_yur[mask].iloc[-1]['delta_long']
                     if pd.notna(delta) and delta > annotation_threshold_yur:
@@ -404,7 +407,7 @@ else:
         if st.session_state.show_yur_sell_plus and not df_yur.empty and 'systime' in df_yur.columns:
             if 'delta_short' not in df_yur.columns: df_yur['delta_short'] = df_yur['pos_short_num'].diff()
             for idx, candle in df_candles.iterrows():
-                mask = (df_yur['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
+                mask = (df_yur['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_yur[mask].iloc[-1]['delta_short']
                     if pd.notna(delta) and delta > annotation_threshold_yur:
@@ -413,7 +416,7 @@ else:
         if st.session_state.show_yur_buy_minus and not df_yur.empty and 'systime' in df_yur.columns:
             if 'delta_long' not in df_yur.columns: df_yur['delta_long'] = df_yur['pos_long_num'].diff()
             for idx, candle in df_candles.iterrows():
-                mask = (df_yur['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
+                mask = (df_yur['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_yur[mask].iloc[-1]['delta_long']
                     if pd.notna(delta) and delta < -annotation_threshold_yur:
@@ -422,7 +425,7 @@ else:
         if st.session_state.show_yur_sell_minus and not df_yur.empty and 'systime' in df_yur.columns:
             if 'delta_short' not in df_yur.columns: df_yur['delta_short'] = df_yur['pos_short_num'].diff()
             for idx, candle in df_candles.iterrows():
-                mask = (df_yur['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
+                mask = (df_yur['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask.any():
                     delta = df_yur[mask].iloc[-1]['delta_short']
                     if pd.notna(delta) and delta < -annotation_threshold_yur:
@@ -455,29 +458,30 @@ else:
             )
             concentration_count[0] += 1
 
-        # Физлица: концентрация (лонг и шорт)
-        if not df_fiz.empty and 'systime' in df_fiz.columns:
-            if 'delta_long' not in df_fiz.columns: df_fiz['delta_long'] = df_fiz['pos_long_num'].diff()
-            if 'delta_short' not in df_fiz.columns: df_fiz['delta_short'] = df_fiz['pos_short_num'].diff()
-            if 'delta_long_contracts' not in df_fiz.columns: df_fiz['delta_long_contracts'] = df_fiz['pos_long'].diff()
-            if 'delta_short_contracts' not in df_fiz.columns: df_fiz['delta_short_contracts'] = df_fiz['pos_short'].diff()
-            for idx, candle in df_candles.iterrows():
-                mask = (df_fiz['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
-                if mask.any():
-                    d_long_num = df_fiz[mask].iloc[-1]['delta_long']
-                    d_short_num = df_fiz[mask].iloc[-1]['delta_short']
-                    d_long_contracts = df_fiz[mask].iloc[-1]['delta_long_contracts']
-                    d_short_contracts = df_fiz[mask].iloc[-1]['delta_short_contracts']
-                    d_oi = d_oi_map.get(pd.Timestamp(candle['begin']).floor('5min'))
-                    if d_oi is not None and pd.notna(d_oi) and d_oi > 0:
-                        # Концентрация ЛОНГ
-                        if pd.notna(d_long_num) and pd.notna(d_long_contracts):
-                            if abs(d_long_num) <= concentration_threshold_accounts and d_long_contracts >= concentration_threshold_contracts:
-                                add_concentration_marker(candle['begin'], candle['high'], d_long_contracts, '#26A69A', 70, 'Физ: концентрация лонг')
-                        # Концентрация ШОРТ
-                        if pd.notna(d_short_num) and pd.notna(d_short_contracts):
-                            if abs(d_short_num) <= concentration_threshold_accounts and d_short_contracts >= concentration_threshold_contracts:
-                                add_concentration_marker(candle['begin'], candle['low'], d_short_contracts, '#EF5350', -70, 'Физ: концентрация шорт')
+        if st.session_state.show_concentration:
+            # Физлица: концентрация (лонг и шорт)
+          if not df_fiz.empty and 'systime' in df_fiz.columns:
+              if 'delta_long' not in df_fiz.columns: df_fiz['delta_long'] = df_fiz['pos_long_num'].diff()
+              if 'delta_short' not in df_fiz.columns: df_fiz['delta_short'] = df_fiz['pos_short_num'].diff()
+              if 'delta_long_contracts' not in df_fiz.columns: df_fiz['delta_long_contracts'] = df_fiz['pos_long'].diff()
+              if 'delta_short_contracts' not in df_fiz.columns: df_fiz['delta_short_contracts'] = df_fiz['pos_short'].diff()
+              for idx, candle in df_candles.iterrows():
+                  mask = (df_fiz['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
+                  if mask.any():
+                      d_long_num = df_fiz[mask].iloc[-1]['delta_long']
+                      d_short_num = df_fiz[mask].iloc[-1]['delta_short']
+                      d_long_contracts = df_fiz[mask].iloc[-1]['delta_long_contracts']
+                      d_short_contracts = df_fiz[mask].iloc[-1]['delta_short_contracts']
+                      d_oi = d_oi_map.get(pd.Timestamp(candle['begin']).floor('5min'))
+                      if d_oi is not None and pd.notna(d_oi) and d_oi > 0:
+                          # Концентрация ЛОНГ
+                          if pd.notna(d_long_num) and pd.notna(d_long_contracts):
+                              if abs(d_long_num) <= concentration_threshold_accounts and d_long_contracts >= concentration_threshold_contracts:
+                                  add_concentration_marker(candle['begin'], candle['high'], d_long_contracts, '#26A69A', 70, 'Физ: концентрация лонг')
+                          # Концентрация ШОРТ
+                          if pd.notna(d_short_num) and pd.notna(d_short_contracts):
+                              if abs(d_short_num) <= concentration_threshold_accounts and d_short_contracts >= concentration_threshold_contracts:
+                                  add_concentration_marker(candle['begin'], candle['low'], d_short_contracts, '#EF5350', -70, 'Физ: концентрация шорт')
 
         # ========== [НОВОЕ 2026-08-24] СИГНАЛ ЮРЛИЦ: доля >50% + много контрактов ==========
         # Доля юрлиц = clip(dYUR,0) / (clip(dFIZ,0) + clip(dYUR,0)) * 100 (проверенная формула "Лицо")
@@ -499,14 +503,14 @@ else:
             )
             yur_signal_count[0] += 1
 
-        if not df_fiz.empty and not df_yur.empty and 'systime' in df_fiz.columns and 'systime' in df_yur.columns:
+        if st.session_state.show_yur_signal and not df_fiz.empty and not df_yur.empty and 'systime' in df_fiz.columns and 'systime' in df_yur.columns:
             if 'delta_long_contracts' not in df_fiz.columns: df_fiz['delta_long_contracts'] = df_fiz['pos_long'].diff()
             if 'delta_short_contracts' not in df_fiz.columns: df_fiz['delta_short_contracts'] = df_fiz['pos_short'].diff()
             if 'delta_long_contracts' not in df_yur.columns: df_yur['delta_long_contracts'] = df_yur['pos_long'].diff()
             if 'delta_short_contracts' not in df_yur.columns: df_yur['delta_short_contracts'] = df_yur['pos_short'].diff()
             for idx, candle in df_candles.iterrows():
-                mask_f = (df_fiz['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
-                mask_y = (df_yur['systime'] - candle['begin']).abs() <= pd.Timedelta(minutes=15)
+                mask_f = (df_fiz['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
+                mask_y = (df_yur['systime'] - (candle['begin'] + pd.Timedelta(minutes=5))).abs() <= pd.Timedelta(minutes=2)
                 if mask_f.any() and mask_y.any():
                     f_long = df_fiz[mask_f].iloc[-1]['delta_long_contracts']
                     f_short = df_fiz[mask_f].iloc[-1]['delta_short_contracts']
