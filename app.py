@@ -369,6 +369,8 @@ else:
                 _g['d_short_c'] = _g['pos_short'].diff()
                 _g['avg_long_c'] = _g['d_long_c'].abs().expanding(min_periods=3).mean().shift(1)
                 _g['avg_short_c'] = _g['d_short_c'].abs().expanding(min_periods=3).mean().shift(1)
+        # [NEW] Отступ маркеров от свечей: 2% видимого диапазона цены
+        _marker_gap = (float(df_candles['high'].max()) - float(df_candles['low'].min())) * 0.03
 
         # ========== ФИЗЛИЦА ==========
         if st.session_state.show_fiz_buy_plus and not df_fiz.empty and 'systime' in df_fiz.columns:
@@ -383,7 +385,7 @@ else:
                         # Фильтр: контрактов >= 1.5 * счетов
                         if pd.notna(delta_contracts) and delta_contracts >= 1.5 * delta:
                             _avg = df_fiz[mask].iloc[-1]['avg_long_c']
-                            add_marker_with_text(candle['begin'], candle['high'], delta, 'triangle-up', '#26A69A', 18, dyn_size(delta_contracts, _avg))
+                            add_marker_with_text(candle['begin'], candle['high'] + _marker_gap, delta, 'triangle-up', '#26A69A', 18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_fiz_sell_plus and not df_fiz.empty and 'systime' in df_fiz.columns:
             if 'delta_short' not in df_fiz.columns: df_fiz['delta_short'] = df_fiz['pos_short_num'].diff()
@@ -397,7 +399,7 @@ else:
                         # Фильтр: |контрактов| >= 1.5 * |счетов| (оба отрицательные для шорта)
                         if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
                             _avg = df_fiz[mask].iloc[-1]['avg_short_c']
-                            add_marker_with_text(candle['begin'], candle['low'], delta, 'triangle-down', '#EF5350', -18, dyn_size(delta_contracts, _avg))
+                            add_marker_with_text(candle['begin'], candle['low'] - _marker_gap, delta, 'triangle-down', '#EF5350', -18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_fiz_buy_minus and not df_fiz.empty and 'systime' in df_fiz.columns:
             if 'delta_long' not in df_fiz.columns: df_fiz['delta_long'] = df_fiz['pos_long_num'].diff()
@@ -411,7 +413,7 @@ else:
                         # Фильтр: |контрактов| >= 1.5 * |счетов|
                         if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
                             _avg = df_fiz[mask].iloc[-1]['avg_long_c']
-                            add_marker_with_text(candle['begin'], candle['high'], delta, 'triangle-down', '#26A69A', -18, dyn_size(delta_contracts, _avg))
+                            add_marker_with_text(candle['begin'], candle['high'] + _marker_gap, delta, 'triangle-down', '#26A69A', 18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_fiz_sell_minus and not df_fiz.empty and 'systime' in df_fiz.columns:
             if 'delta_short' not in df_fiz.columns: df_fiz['delta_short'] = df_fiz['pos_short_num'].diff()
@@ -425,7 +427,7 @@ else:
                         # Фильтр: |контрактов| >= 1.5 * |счетов|
                         if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
                             _avg = df_fiz[mask].iloc[-1]['avg_short_c']
-                            add_marker_with_text(candle['begin'], candle['low'], delta, 'triangle-up', '#EF5350', 18, dyn_size(delta_contracts, _avg))
+                            add_marker_with_text(candle['begin'], candle['low'] - _marker_gap, delta, 'triangle-up', '#EF5350', -18, dyn_size(delta_contracts, _avg))
 
         # ========== ЮРЛИЦА ==========
         if st.session_state.show_yur_buy_plus and not df_yur.empty and 'systime' in df_yur.columns:
@@ -439,7 +441,7 @@ else:
                     if pd.notna(delta) and delta > annotation_threshold_yur:
                         if pd.notna(delta_contracts) and delta_contracts >= 1.5 * delta:
                             _avg = df_yur[mask].iloc[-1]['avg_long_c']
-                            add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#26A69A', 18, dyn_size(delta_contracts, _avg))
+                            add_marker_with_text(candle['begin'], candle['high'] + _marker_gap, delta, 'circle', '#26A69A', 18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_yur_sell_plus and not df_yur.empty and 'systime' in df_yur.columns:
             if 'delta_short' not in df_yur.columns: df_yur['delta_short'] = df_yur['pos_short_num'].diff()
@@ -452,7 +454,7 @@ else:
                     if pd.notna(delta) and delta > annotation_threshold_yur:
                         if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
                             _avg = df_yur[mask].iloc[-1]['avg_short_c']
-                            add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#EF5350', -18, dyn_size(delta_contracts, _avg))
+                            add_marker_with_text(candle['begin'], candle['low'] - _marker_gap, delta, 'circle', '#EF5350', -18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_yur_buy_minus and not df_yur.empty and 'systime' in df_yur.columns:
             if 'delta_long' not in df_yur.columns: df_yur['delta_long'] = df_yur['pos_long_num'].diff()
@@ -465,7 +467,7 @@ else:
                     if pd.notna(delta) and delta < -annotation_threshold_yur:
                         if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
                             _avg = df_yur[mask].iloc[-1]['avg_long_c']
-                            add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#26A69A', -18, dyn_size(delta_contracts, _avg))
+                            add_marker_with_text(candle['begin'], candle['high'] + _marker_gap, delta, 'circle', '#26A69A', 18, dyn_size(delta_contracts, _avg))
 
         if st.session_state.show_yur_sell_minus and not df_yur.empty and 'systime' in df_yur.columns:
             if 'delta_short' not in df_yur.columns: df_yur['delta_short'] = df_yur['pos_short_num'].diff()
@@ -478,7 +480,7 @@ else:
                     if pd.notna(delta) and delta < -annotation_threshold_yur:
                         if pd.notna(delta_contracts) and abs(delta_contracts) >= 1.5 * abs(delta):
                             _avg = df_yur[mask].iloc[-1]['avg_short_c']
-                            add_marker_with_text(candle['begin'], candle['close'], delta, 'circle', '#EF5350', 18, dyn_size(delta_contracts, _avg))
+                            add_marker_with_text(candle['begin'], candle['low'] - _marker_gap, delta, 'circle', '#EF5350', -18, dyn_size(delta_contracts, _avg))
 
         # Общий словарь d_oi для концентрации и сигнала юрлиц
         d_oi_map = {}
