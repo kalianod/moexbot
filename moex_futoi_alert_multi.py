@@ -33,6 +33,12 @@ load_dotenv()
 SYMBOLS = ["SiU6", "CRU6", "MXU6"] 
 THRESHOLD = 10
 
+# [NEW 2026-08-25] Аномалии набора: адаптивные пороги
+ANOMALY_K = 3.0        # аномалия если набор >= K * средний по дню
+ANOMALY_MIN = 200      # минимальный абсолютный набор (контрактов)
+ANOMALY_FACE = True    # показывать лицо (Ф/Ю %) в сообщении
+LEGACY_ALERTS = False  # отключить старые алерты (FIZ long/short + YUR сигнал)
+
 # [ИЗМЕНЕНИЕ]: Базовые шаблоны имен файлов. Конкретное имя будет формироваться внутри функции с добавлением тикера.
 # Это предотвращает перезапись состояния (last_key) одного тикера другим.
 BASE_STATE_FILE = "futoi_state_{}.json"
@@ -246,6 +252,68 @@ def save_candles_to_cache(symbol, df_candles):
         conn.close()
 
 
+def check_anomaly_uptake(symbol, current_time,
+                             delta_fiz_long, delta_fiz_short,
+                             delta_yur_long, delta_yur_short, state):
+    """Проверяет аномалию набора (лонг/шорт) и возвращает список сообщений или []."""
+    # Валовый набор. Для long: рост = положительная дельта.
+    # Для short: pos_short в БД отрицательный, поэтому рост шорта = ОТРИЦАТЕЛЬНАЯ дельта.
+    uptake_long  = max(delta_fiz_long, 0)  + max(delta_yur_long, 0)
+    uptake_short = max(-delta_fiz_short, 0) + max(-delta_yur_short, 0)
+
+    if 'anomaly_state' not in state:
+        state['anomaly_state'] = {'day': '', 'long_uptake': [], 'short_uptake': []}
+    anom = state['anomaly_state']
+    today = current_time.strftime('%Y-%m-%d')
+    if anom['day'] != today:
+        anom['day'] = today
+        anom['long_uptake'] = []
+        anom['short_uptake'] = []
+
+    anom['long_uptake'].append(uptake_long)
+    anom['short_uptake'].append(uptake_short)
+
+    messages = []
+
+    # Лонги
+    if uptake_long >= ANOMALY_MIN and len(anom['long_uptake']) > 1:
+        avg_long = sum(anom['long_uptake'][:-1]) / len(anom['long_uptake'][:-1])
+        if avg_long > 0 and uptake_long >= ANOMALY_K * avg_long:
+            pct_avg = uptake_long / avg_long * 100
+            fiz_part = max(delta_fiz_long, 0)
+            yur_part = max(delta_yur_long, 0)
+            face_fiz = fiz_part / uptake_long * 100 if uptake_long > 0 else 0
+            face_yur = yur_part / uptake_long * 100 if uptake_long > 0 else 0
+            msg = (
+                f"🚨 *{symbol} | Аномальный набор ЛОНГ*\n"
+                f"⏰ `{current_time.strftime('%H:%M')}` | `+{uptake_long:,}` контр. за 5 мин\n"
+                f"📈 `{pct_avg:.0f}%` от среднего по дню ({avg_long:.0f})"
+            )
+            if ANOMALY_FACE:
+                msg += f"\n🏦 Лицо: Ф {face_fiz:.0f}% / Ю {face_yur:.0f}%"
+            messages.append(msg)
+
+    # Шорты
+    if uptake_short >= ANOMALY_MIN and len(anom['short_uptake']) > 1:
+        avg_short = sum(anom['short_uptake'][:-1]) / len(anom['short_uptake'][:-1])
+        if avg_short > 0 and uptake_short >= ANOMALY_K * avg_short:
+            pct_avg = uptake_short / avg_short * 100
+            fiz_part = max(-delta_fiz_short, 0)
+            yur_part = max(-delta_yur_short, 0)
+            face_fiz = fiz_part / uptake_short * 100 if uptake_short > 0 else 0
+            face_yur = yur_part / uptake_short * 100 if uptake_short > 0 else 0
+            msg = (
+                f"🚨 *{symbol} | Аномальный набор ШОРТ*\n"
+                f"⏰ `{current_time.strftime('%H:%M')}` | `+{uptake_short:,}` контр. за 5 мин\n"
+                f"📈 `{pct_avg:.0f}%` от среднего по дню ({avg_short:.0f})"
+            )
+            if ANOMALY_FACE:
+                msg += f"\n🏦 Лицо: Ф {face_fiz:.0f}% / Ю {face_yur:.0f}%"
+            messages.append(msg)
+
+    return messages
+
+
 def check_once(symbol):
     # [ИЗМЕНЕНИЕ]: Формируем уникальные пути к файлам для каждого символа
     state_file = BASE_STATE_FILE.format(symbol)
@@ -343,6 +411,24 @@ def check_once(symbol):
         log_file
     )
 
+    # [NEW 2026-08-25] Дельты YUR для аномалий (безопасно — если нет данных, то 0)
+    dyur_long = 0
+    dyur_short = 0
+    if 'df_yur' in locals() and not df_yur.empty:
+        curr_yur = nearest_row(df_yur, datetime.now())[0]
+        prev_yur = nearest_row(df_yur, datetime.now() - timedelta(minutes=5))[0]
+        if curr_yur is not None and prev_yur is not None:
+            dyur_long  = int(curr_yur.get('pos_long', 0))  - int(prev_yur.get('pos_long', 0))
+            dyur_short = int(curr_yur.get('pos_short', 0)) - int(prev_yur.get('pos_short', 0))
+
+    # [NEW 2026-08-25] Проверка аномалий набора (адаптивная, без отправки — только формируем список)
+    anomaly_msgs = check_anomaly_uptake(
+        symbol, current_time,
+        delta_oi_long, delta_oi_short,  # FIZ
+        dyur_long, dyur_short,          # YUR
+        state
+    )
+
     key = f"{current_time.isoformat()}:{current_long_num}:{current_short_num}:{delta_long_num}:{delta_short_num}"
     if state.get("last_key") == key:
         log_line(f"[{symbol}] duplicate skipped", log_file)
@@ -353,7 +439,12 @@ def check_once(symbol):
 
     messages = []
 
-    if delta_long_num > THRESHOLD:
+    # [NEW 2026-08-25] Аномалии набора (всегда активны)
+    if anomaly_msgs:
+        messages.extend(anomaly_msgs)
+
+    # [OLD] Старые алерты (отключены по умолчанию через LEGACY_ALERTS)
+    if LEGACY_ALERTS and delta_long_num > THRESHOLD:
         oi_state = "прирост OI" if delta_oi_long >= 0 else "падение OI"
         direction = "купили" if delta_oi_long >= 0 else "продали"
         messages.append(
@@ -364,7 +455,7 @@ def check_once(symbol):
             f"💡 Вывод: OI {oi_state}, новые счета {direction}"
         )
 
-    if delta_short_num > THRESHOLD:
+    if LEGACY_ALERTS and delta_short_num > THRESHOLD:
         oi_state = "прирост OI" if delta_oi_short >= 0 else "падение OI"
         direction = "купили" if delta_oi_short >= 0 else "продали"
         messages.append(
@@ -376,7 +467,7 @@ def check_once(symbol):
         )
 
     # [НОВОЕ 2026-08-19]: Формирование сообщения о вероятностном сигнале YUR
-    if yur_signal_active:
+    if LEGACY_ALERTS and yur_signal_active:
         yur_msg = (
             f"🏦 *{symbol} YUR: Вероятный набор long*\n"
             f"⏰ Время: `{current_time}`\n"
