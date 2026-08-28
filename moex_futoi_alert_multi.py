@@ -38,6 +38,7 @@ ANOMALY_K = 3.0        # аномалия если набор >= K * средн�
 ANOMALY_MIN = 200      # минимальный абсолютный набор (контрактов)
 ANOMALY_FACE = True    # показывать лицо (Ф/Ю %) в сообщении
 LEGACY_ALERTS = False  # отключить старые алерты (FIZ long/short + YUR сигнал)
+OTC_ENABLED = True     # [NEW 2026-08-28] сбор внебиржевых (адресных) сделок
 
 # [ИЗМЕНЕНИЕ]: Базовые шаблоны имен файлов. Конкретное имя будет формироваться внутри функции с добавлением тикера.
 # Это предотвращает перезапись состояния (last_key) одного тикера другим.
@@ -252,6 +253,37 @@ def save_candles_to_cache(symbol, df_candles):
         conn.close()
 
 
+def save_otc_trades(symbol):
+    """[NEW 2026-08-28] Собирает OTC-сделки (offmarketdeal=1) из ленты текущего дня.
+    oi_delta — изменение OI относительно предыдущей сделки ленты (оценка)."""
+    tr = Ticker(symbol).trades()
+    if tr is None or tr.empty or 'offmarketdeal' not in tr.columns:
+        return 0
+    tr = tr.sort_values('recno')
+    tr['oi_d'] = tr['openposition'].diff().fillna(0)
+    otc = tr[tr['offmarketdeal'] == 1]
+    if otc.empty:
+        return 0
+    conn = sqlite3.connect(DB_PATH)
+    n = 0
+    for _, r in otc.iterrows():
+        try:
+            cur = conn.execute(
+                """INSERT OR IGNORE INTO otc_trades
+                   (symbol, tradeno, tradedate, tradetime, price, quantity, buysell,
+                    openposition, oi_delta, systime)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (symbol, int(r['tradeno']), str(r['tradedate']), str(r['tradetime']),
+                 float(r['price']), int(r['quantity']), str(r['buysell']),
+                 int(r['openposition']), int(r['oi_d']), str(r['systime'])))
+            n += cur.rowcount
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()
+    return n
+
+
 def check_anomaly_uptake(symbol, current_time,
                              delta_fiz_long, delta_fiz_short,
                              delta_yur_long, delta_yur_short, state):
@@ -353,6 +385,15 @@ def check_once(symbol):
         save_candles_to_cache(symbol, df_candles)
     except Exception as e:
         log_line(f"[{symbol}] candles cache save failed: {e}", log_file)
+
+    # [NEW 2026-08-28]: Сбор OTC-сделок (адресных) из ленты
+    if OTC_ENABLED:
+        try:
+            n_otc = save_otc_trades(symbol)
+            if n_otc:
+                log_line(f"[{symbol}] OTC trades saved: {n_otc}", log_file)
+        except Exception as e:
+            log_line(f"[{symbol}] OTC save failed: {e}", log_file)
 
     # Для алертов используем только данные по физическим лицам (как было ранее)
     df = df_fiz
