@@ -49,3 +49,11 @@ Thumbs.db
 *.tmp
 *.temp
 FinLabPy/
+
+# Состояние коллектора (пересоздаётся)
+futoi_state_*.json
+
+# Бэкапы
+*.bak
+*.bak_*
+backup_wireguard_*/
