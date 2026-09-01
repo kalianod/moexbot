@@ -41,7 +41,7 @@ state_keys = [
     'show_yur_buy_plus', 'show_yur_sell_plus',
     'show_yur_buy_minus', 'show_yur_sell_minus', 'show_profile_oi',
     'show_concentration', 'show_yur_signal', 'show_passive_yur', 'show_absorption',
-    'show_divergence', 'show_breakout'
+    'show_divergence', 'show_breakout', 'show_squeeze'
 ]
 
 query_params = st.query_params
@@ -89,7 +89,7 @@ hide_export = st.query_params.get('hide_export', 'false').lower() == 'true'
 
 # ==================== КНОПКИ ФИЛЬТРОВ ====================
 st.markdown("---")
-btn_cols = st.columns(16)
+btn_cols = st.columns(17)
 
 buttons_config = [
     ("btn_clusters", "show_clusters", "Кластера Ф/Ю"),
@@ -108,6 +108,7 @@ buttons_config = [
     ("btn_absorption", "show_absorption", "🏦 Абсорбция"),
     ("btn_divergence", "show_divergence", "⬢ Дивергенция"),
     ("btn_breakout", "show_breakout", "⚡ Пробой"),
+    ("btn_squeeze", "show_squeeze", "🔥 Сквиз"),
 ]
 
 # Семантика цвета кнопок (эмодзи) + Сброс
@@ -294,6 +295,17 @@ def load_breakout(symbol):
 
 df_divergence = load_divergence(symbol)
 df_breakout = load_breakout(symbol)
+
+# [NEW 2026-09-01] Загрузка short squeeze
+@st.cache_data(ttl=60)
+def load_squeeze(symbol):
+    conn = sqlite3.connect(DB_PATH)
+    q = "SELECT bar_ts, d_net_y, d_oi FROM squeeze_events WHERE symbol=? ORDER BY bar_ts"
+    d = pd.read_sql_query(q, conn, params=(symbol,), parse_dates=['bar_ts'])
+    conn.close()
+    return d
+
+df_squeeze = load_squeeze(symbol)
 
 # ==================== ГРАФИК ====================
 if df_candles.empty:
@@ -551,6 +563,26 @@ else:
                         marker=dict(symbol='star', size=16 if is_up else 14, color=m_col,
                                     line=dict(width=1.5, color='black')),
                         showlegend=False, hovertemplate=tip), row=1, col=1)
+
+        # ========== [NEW 2026-09-01] СЛОЙ C: SHORT SQUEEZE (фиолетовые треугольники, 6x gap) ==========
+        if st.session_state.show_squeeze and not df_squeeze.empty:
+            ss = df_squeeze.copy()
+            ss['x'] = ss['bar_ts'] - pd.Timedelta(minutes=5)
+            ss = ss.merge(df_candles[['begin', 'high', 'low']], left_on='x', right_on='begin', how='inner')
+            if not ss.empty:
+                _sq_gap = (float(df_candles['high'].max()) - float(df_candles['low'].min())) * 0.06
+                for _, r in ss.iterrows():
+                    fig.add_trace(go.Scatter(
+                        x=[r['x']], y=[r['high'] + _sq_gap], mode='markers',
+                        marker=dict(symbol='triangle-up', size=14, color='#9C27B0',
+                                    line=dict(width=1.5, color='white')),
+                        showlegend=False,
+                        hovertemplate=(
+                            f"<b>🔥 Short Squeeze: юрлица закрывают шорты</b><br>"
+                            f"Бар: {r['x'].strftime('%d.%m %H:%M')}<br>"
+                            f"Ю нетто: {r['d_net_y']:+,.0f} | OI: {r['d_oi']:+,.0f}<br>"
+                            f"История: +103bp за 2 дня, WR75% → лонг 1-2 дня<extra></extra>")
+                    ), row=1, col=1)
 
         # [NEW] Динамический размер маркера: аномальность контрактов к среднему по дню
         def dyn_size(d, avg):
