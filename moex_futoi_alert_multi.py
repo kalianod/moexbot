@@ -428,6 +428,33 @@ def check_divergence_breakout(symbol, current_time):
     conn.close()
     return messages
 
+def save_tradestats(symbol, df_ts):
+    """[NEW 2026-09-01] Live-обновление tradestats_data (нужно для squeeze/trap/absorption)."""
+    if df_ts is None or df_ts.empty:
+        return
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        df_copy = df_ts.copy()
+        df_copy['symbol'] = symbol
+        if 'd_oi' not in df_copy.columns and {'oi_open', 'oi_close'} <= set(df_copy.columns):
+            df_copy['d_oi'] = df_copy['oi_close'] - df_copy['oi_open']
+        for col in ('tradedate', 'tradetime', 'systime'):
+            if col in df_copy.columns:
+                df_copy[col] = df_copy[col].astype(str)
+        cols_in_table = [r[1] for r in conn.execute("PRAGMA table_info(tradestats_data)")]
+        use_cols = [c for c in cols_in_table if c in df_copy.columns]
+        for _, row in df_copy[use_cols].iterrows():
+            cols_str = ', '.join(row.index)
+            ph = ', '.join(['?'] * len(row.index))
+            conn.execute(f"INSERT OR REPLACE INTO tradestats_data ({cols_str}) VALUES ({ph})", tuple(row))
+        conn.commit()
+        print(f"[{symbol}] ✅ tradestats saved: {len(df_copy)} rows")
+    except Exception as e:
+        print(f"[{symbol}] ❌ tradestats save error: {e}")
+    finally:
+        conn.close()
+
+
 def check_once(symbol):
     # [ИЗМЕНЕНИЕ]: Формируем уникальные пути к файлам для каждого символа
     state_file = BASE_STATE_FILE.format(symbol)
@@ -463,6 +490,7 @@ def check_once(symbol):
         df_ob = fut.obstats(start=start_date, end=end_date)
         df_ts = fut.tradestats(start=start_date, end=end_date)
         save_bar_stats(symbol, df_ob, df_ts, df_fiz, df_yur)
+        save_tradestats(symbol, df_ts)
     except Exception as e:
         log_line(f"[{symbol}] bar_stats save failed: {e}", log_file)
 
