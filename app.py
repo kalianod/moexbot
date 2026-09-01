@@ -72,7 +72,7 @@ yur_share_threshold = st.sidebar.slider("Юрлица: мин. доля (%):", m
 yur_contracts_threshold = st.sidebar.slider("Юрлица: мин. контрактов:", min_value=100, max_value=10000, value=1000)
 
 # [NEW 2026-08-31] Пассивный объём юрлиц: источник сигнала
-passive_source = st.sidebar.selectbox("Пассивный Ю: источник", ["оба (V3)", "стакан (V1)", "агрессия (V2)"])
+passive_source = st.sidebar.selectbox("Пассивный Ю: источник", ["оба (V3)", "агрессия абс. (V2.5)", "стакан (V1)", "агрессия (V2)"])
 
 st.sidebar.markdown("---")
 st.sidebar.caption(f"🔄 Автообновление: 5 мин")
@@ -250,7 +250,7 @@ def load_data(symbol, start, end, tf):
 def load_passive(symbol):
     """[NEW 2026-08-31] Оценка пассивного объёма юрлиц из legal_passive_estimate"""
     conn = sqlite3.connect(DB_PATH)
-    q = """SELECT bar_ts, delta_jur, score_v1, z_v1, score_v2, z_v2, conf, agree
+    q = """SELECT bar_ts, delta_jur, score_v1, z_v1, score_v2, z_v2, conf, agree, fwd30_bp, class, score_v25, z_v25, aggr_abs, d_long, d_short, d_gross
            FROM legal_passive_estimate WHERE symbol=? ORDER BY bar_ts"""
     dfp = pd.read_sql_query(q, conn, params=(symbol,), parse_dates=['bar_ts'])
     conn.close()
@@ -380,7 +380,10 @@ else:
         if _show_passive:
             dp = df_passive.copy()
             dp['x'] = dp['bar_ts'] - pd.Timedelta(minutes=5)  # метка конца бара -> begin свечи
-            if passive_source == "стакан (V1)":
+            if passive_source == "агрессия абс. (V2.5)":
+                dp['z_sel'], dp['s_sel'] = dp['z_v25'], dp['score_v25']
+                dp = dp[dp['z_sel'].abs() >= 2.0]
+            elif passive_source == "стакан (V1)":
                 dp['z_sel'], dp['s_sel'] = dp['z_v1'], dp['score_v1']
                 dp = dp[dp['z_sel'].abs() >= 2.0]
             elif passive_source == "агрессия (V2)":
@@ -396,12 +399,17 @@ else:
             if not dp.empty:
                 colors = ['#26A69A' if z > 0 else '#EF5350' for z in dp['z_sel']]
                 opac = [round(0.3 + 0.7 * min(c, 1.0), 2) for c in dp['conf']]
+                # [NEW 2026-08-31] Честный тултип: residual, strength, forward, class
                 hover = [
-                    f"<b>🏦 Пассивный объём Ю (~оценка)</b><br>"
+                    f"<b>🏦 Legal Position Anomaly (~оценка)</b><br>"
                     f"Бар: {t.strftime('%d.%m %H:%M')}<br>"
-                    f"Score: {s:+,.0f} контр. | z: {z:+.2f}<br>"
-                    f"ΔYUR: {d:+,.0f} | conf: {c:.2f}<extra></extra>"
-                    for t, s, z, d, c in zip(dp['x'], dp['s_sel'], dp['z_sel'], dp['delta_jur'], dp['conf'])
+                    f"Residual ΔYUR: {s:+,.0f} контр. | z: {z:+.2f}<br>"
+                    f"ΔYUR: {d:+,.0f} | strength: {c:.2f}<br>"
+                    f"Класс: {cl}<br>"
+                    f"Forward 30m: {fw:+.1f} bp<extra></extra>"
+                    for t, s, z, d, c, cl, fw in zip(
+                        dp['x'], dp['s_sel'], dp['z_sel'], dp['delta_jur'],
+                        dp['conf'], dp['class'], dp['fwd30_bp'])
                 ]
                 fig.add_trace(go.Bar(
                     x=dp['x'], y=dp['s_sel'],
