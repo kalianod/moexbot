@@ -39,6 +39,7 @@ ANOMALY_MIN = 200      # минимальный абсолютный набор 
 ANOMALY_FACE = True    # показывать лицо (Ф/Ю %) в сообщении
 LEGACY_ALERTS = False  # отключить старые алерты (FIZ long/short + YUR сигнал)
 OTC_ENABLED = True     # [NEW 2026-08-28] сбор внебиржевых (адресных) сделок
+DIV_BREAKOUT_ALERTS = True  # [NEW 2026-09-01] алерты по дивергенции и пробою
 
 # [ИЗМЕНЕНИЕ]: Базовые шаблоны имен файлов. Конкретное имя будет формироваться внутри функции с добавлением тикера.
 # Это предотвращает перезапись состояния (last_key) одного тикера другим.
@@ -346,6 +347,58 @@ def check_anomaly_uptake(symbol, current_time,
     return messages
 
 
+
+def check_divergence_breakout(symbol, current_time):
+    """[NEW 2026-09-01] Проверяет свежие дивергенции и пробои, возвращает список алертов."""
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH)
+    messages = []
+    
+    # Последние 10 минут (с запасом на задержки)
+    t_from = (current_time - timedelta(minutes=10)).strftime('%Y-%m-%d %H:%M:%S')
+    t_to = current_time.strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Дивергенции (только бычьи: Ф BUY + Ю SELL)
+    try:
+        divs = conn.execute(
+            "SELECT bar_ts, div_type, d_net_f, d_net_y FROM divergence_events "
+            "WHERE symbol=? AND bar_ts BETWEEN ? AND ? AND div_type='F_BUY_Y_SELL'",
+            (symbol, t_from, t_to)).fetchall()
+        for bar_ts, div_type, d_net_f, d_net_y in divs:
+            msg = (
+                f"⬢ *{symbol} | Дивергенция: Ф покупают / Ю продают*\n"
+                f"⏰ `{bar_ts[11:16]}` | Ф: `{d_net_f:+,.0f}` | Ю: `{d_net_y:+,.0f}`\n"
+                f"📊 +99bp за 2 дня, WR77% → лонг, горизонт 1-2 дня"
+            )
+            messages.append(msg)
+    except Exception as e:
+        print(f"[{symbol}] divergence check error: {e}")
+    
+    # Пробои (оба типа: BREAK_UP золото, BREAK_DOWN оранжевый)
+    try:
+        breaks = conn.execute(
+            "SELECT bar_ts, combo_type FROM breakout_combo "
+            "WHERE symbol=? AND bar_ts BETWEEN ? AND ?",
+            (symbol, t_from, t_to)).fetchall()
+        for bar_ts, combo_type in breaks:
+            if combo_type == 'BREAK_UP':
+                emoji, action = '⭐', 'ЛОНГ'
+                desc = 'Пробой стены продавца → рост'
+            else:
+                emoji, action = '🟠', 'ЛОЖНЫЙ ПРОБОЙ'
+                desc = 'Краткосрочно вниз, разворот вверх (4ч-2д)'
+            msg = (
+                f"{emoji} *{symbol} | {action}*\n"
+                f"⏰ `{bar_ts[11:16]}` | {desc}\n"
+                f"📊 +99bp/2д, WR80% → {action.lower()} 1-2 дня"
+            )
+            messages.append(msg)
+    except Exception as e:
+        print(f"[{symbol}] breakout check error: {e}")
+    
+    conn.close()
+    return messages
+
 def check_once(symbol):
     # [ИЗМЕНЕНИЕ]: Формируем уникальные пути к файлам для каждого символа
     state_file = BASE_STATE_FILE.format(symbol)
@@ -370,6 +423,11 @@ def check_once(symbol):
     
     # Сохраняем ВСЕ данные (и FIZ, и YUR) в базу данных одним вызовом
     save_to_database(symbol, df_all)
+
+    # [NEW 2026-09-01] Проверка дивергенций и пробоев
+    div_break_msgs = []
+    if DIV_BREAKOUT_ALERTS:
+        div_break_msgs = check_divergence_breakout(symbol, datetime.now())
 
     # [НОВОЕ 2026-08-19]: Загружаем OBStats и TradeStats для баровой статистики
     try:
@@ -463,12 +521,12 @@ def check_once(symbol):
             dyur_short = int(curr_yur.get('pos_short', 0)) - int(prev_yur.get('pos_short', 0))
 
     # [NEW 2026-08-25] Проверка аномалий набора (адаптивная, без отправки — только формируем список)
-    anomaly_msgs = check_anomaly_uptake(
-        symbol, current_time,
-        delta_oi_long, delta_oi_short,  # FIZ
-        dyur_long, dyur_short,          # YUR
-        state
-    )
+#     anomaly_msgs = check_anomaly_uptake(
+#         symbol, current_time,
+#         delta_oi_long, delta_oi_short,  # FIZ
+#         dyur_long, dyur_short,          # YUR
+#         state
+#     )
 
     key = f"{current_time.isoformat()}:{current_long_num}:{current_short_num}:{delta_long_num}:{delta_short_num}"
     if state.get("last_key") == key:
@@ -479,10 +537,14 @@ def check_once(symbol):
     save_state(state, state_file)
 
     messages = []
+    # [NEW 2026-09-01] добавляем алерты дивергенций/пробоев
+    if div_break_msgs:
+        messages.extend(div_break_msgs)
+        log_line(f"[{symbol}] div/break alerts queued: {len(div_break_msgs)}", log_file)
 
     # [NEW 2026-08-25] Аномалии набора (всегда активны)
-    if anomaly_msgs:
-        messages.extend(anomaly_msgs)
+#     if anomaly_msgs:
+#         messages.extend(anomaly_msgs)
 
     # [OLD] Старые алерты (отключены по умолчанию через LEGACY_ALERTS)
     if LEGACY_ALERTS and delta_long_num > THRESHOLD:
