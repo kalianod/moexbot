@@ -40,7 +40,7 @@ state_keys = [
     'show_fiz_buy_minus', 'show_fiz_sell_minus',
     'show_yur_buy_plus', 'show_yur_sell_plus',
     'show_yur_buy_minus', 'show_yur_sell_minus', 'show_profile_oi',
-    'show_concentration', 'show_yur_signal'
+    'show_concentration', 'show_yur_signal', 'show_passive_yur'
 ]
 
 query_params = st.query_params
@@ -71,6 +71,9 @@ st.sidebar.markdown("---")
 yur_share_threshold = st.sidebar.slider("Юрлица: мин. доля (%):", min_value=50, max_value=100, value=50)
 yur_contracts_threshold = st.sidebar.slider("Юрлица: мин. контрактов:", min_value=100, max_value=10000, value=1000)
 
+# [NEW 2026-08-31] Пассивный объём юрлиц: источник сигнала
+passive_source = st.sidebar.selectbox("Пассивный Ю: источник", ["оба (V3)", "стакан (V1)", "агрессия (V2)"])
+
 st.sidebar.markdown("---")
 st.sidebar.caption(f"🔄 Автообновление: 5 мин")
 st.sidebar.caption(f"Обновлено: {datetime.now().strftime('%H:%M:%S')}")
@@ -85,7 +88,7 @@ hide_export = st.query_params.get('hide_export', 'false').lower() == 'true'
 
 # ==================== КНОПКИ ФИЛЬТРОВ ====================
 st.markdown("---")
-btn_cols = st.columns(12)
+btn_cols = st.columns(13)
 
 buttons_config = [
     ("btn_clusters", "show_clusters", "Кластера Ф/Ю"),
@@ -100,6 +103,7 @@ buttons_config = [
     ("btn_profile_oi", "show_profile_oi", "Профиль OI"),
     ("btn_concentration", "show_concentration", "Концентрация"),
     ("btn_yur_signal", "show_yur_signal", "Сигнал юрлиц"),
+    ("btn_passive_yur", "show_passive_yur", "🏦 Пассивный Ю"),
 ]
 
 # Семантика цвета кнопок (эмодзи) + Сброс
@@ -242,7 +246,18 @@ def load_data(symbol, start, end, tf):
     st.write(f"✅ Всего загрузка: {time.time()-t_start:.2f}с")
     return df_fiz, df_yur, df_candles, df_bar_stats
 
+@st.cache_data(ttl=60)
+def load_passive(symbol):
+    """[NEW 2026-08-31] Оценка пассивного объёма юрлиц из legal_passive_estimate"""
+    conn = sqlite3.connect(DB_PATH)
+    q = """SELECT bar_ts, delta_jur, score_v1, z_v1, score_v2, z_v2, conf, agree
+           FROM legal_passive_estimate WHERE symbol=? ORDER BY bar_ts"""
+    dfp = pd.read_sql_query(q, conn, params=(symbol,), parse_dates=['bar_ts'])
+    conn.close()
+    return dfp
+
 df_fiz, df_yur, df_candles, df_bar_stats = load_data(symbol, start_date, end_date, timeframe)
+df_passive = load_passive(symbol)
 
 # ==================== ГРАФИК ====================
 if df_candles.empty:
@@ -277,6 +292,7 @@ else:
     <span>★ <b style="color:#EF5350">красн.</b> — Концентрация Ф шорт (мало счетов, много контр.)</span>
     <span>◉ <b style="color:#26A69A">зел.</b> — Юр: доля >50% + много контрактов (long)</span>
     <span>◉ <b style="color:#EF5350">красн.</b> — Юр: доля >50% + много контрактов (short)</span>
+    <span> — Пассивный объём юрлиц (~оценка: остаток регрессии ΔYUR ~ imbalance)</span>
     <span style="margin-left:auto; color:#666">💡 наведите на маркер для деталей</span>
         </div>
         """, unsafe_allow_html=True)
@@ -310,9 +326,12 @@ else:
             annotation_count[0] += 1
 
         # SUBPLOT: 2 строки — свечи (80%) + объём (20%)
+        # [NEW 2026-08-31] 3-й ряд графика при включённом пассивном объёме
+        _show_passive = st.session_state.show_passive_yur and not df_passive.empty
         fig = make_subplots(
-            rows=2, cols=1, shared_xaxes=True,
-            row_heights=[0.8, 0.2], vertical_spacing=0.02
+            rows=3 if _show_passive else 2, cols=1, shared_xaxes=True,
+            row_heights=[0.7, 0.15, 0.15] if _show_passive else [0.8, 0.2],
+            vertical_spacing=0.02
         )
         
         # Добавляем данные bar_stats к свечам для hover
@@ -356,6 +375,64 @@ else:
                 x=df_candles['begin'], y=df_candles['volume'],
                 marker_color=vol_colors, showlegend=False, opacity=0.5
             ), row=2, col=1)
+
+        # ========== [NEW 2026-08-31] ПАССИВНЫЙ ОБЪЁМ ЮРЛИЦ (row 3, ~оценка) ==========
+        if _show_passive:
+            dp = df_passive.copy()
+            dp['x'] = dp['bar_ts'] - pd.Timedelta(minutes=5)  # метка конца бара -> begin свечи
+            if passive_source == "стакан (V1)":
+                dp['z_sel'], dp['s_sel'] = dp['z_v1'], dp['score_v1']
+                dp = dp[dp['z_sel'].abs() >= 2.0]
+            elif passive_source == "агрессия (V2)":
+                dp['z_sel'], dp['s_sel'] = dp['z_v2'], dp['score_v2']
+                dp = dp[dp['z_sel'].abs() >= 2.0]
+            else:  # оба (V3): консенсус моделей
+                dp['z_sel'] = (dp['z_v1'] + dp['z_v2']) / 2
+                dp['s_sel'] = (dp['score_v1'] + dp['score_v2']) / 2
+                dp = dp[(dp['agree'] == 1) & (dp['z_sel'].abs() >= 2.0)]
+            if not dp.empty:
+                xmin, xmax = df_candles['begin'].min(), df_candles['begin'].max()
+                dp = dp[(dp['x'] >= xmin) & (dp['x'] <= xmax)]
+            if not dp.empty:
+                colors = ['#26A69A' if z > 0 else '#EF5350' for z in dp['z_sel']]
+                opac = [round(0.3 + 0.7 * min(c, 1.0), 2) for c in dp['conf']]
+                hover = [
+                    f"<b>🏦 Пассивный объём Ю (~оценка)</b><br>"
+                    f"Бар: {t.strftime('%d.%m %H:%M')}<br>"
+                    f"Score: {s:+,.0f} контр. | z: {z:+.2f}<br>"
+                    f"ΔYUR: {d:+,.0f} | conf: {c:.2f}<extra></extra>"
+                    for t, s, z, d, c in zip(dp['x'], dp['s_sel'], dp['z_sel'], dp['delta_jur'], dp['conf'])
+                ]
+                fig.add_trace(go.Bar(
+                    x=dp['x'], y=dp['s_sel'],
+                    marker=dict(color=colors, opacity=opac),
+                    showlegend=False, text=hover, hoverinfo='text'
+                ), row=3, col=1)
+
+            # [NEW 2026-08-31] Маркеры пассивного Ю НА СВЕЧАХ (row 1, ~оценка)
+            if not dp.empty:
+                # локальный отступ (2% видимого диапазона), т.к. _marker_gap определён позже
+                _passive_gap = (float(df_candles['high'].max()) - float(df_candles['low'].min())) * 0.02
+                m = dp.merge(df_candles[['begin', 'high', 'low']], left_on='x', right_on='begin', how='inner')
+                for _, r in m.iterrows():
+                    if r['z_sel'] > 0:
+                        y_pos, m_col, y_sh = r['high'] + 2 * _passive_gap, '#26A69A', 18
+                    else:
+                        y_pos, m_col, y_sh = r['low'] - 2 * _passive_gap, '#EF5350', -18
+                    fig.add_trace(go.Scatter(
+                        x=[r['x']], y=[y_pos], mode='markers',
+                        marker=dict(symbol='square', size=10, color=m_col,
+                                    line=dict(width=1, color='white')),
+                        showlegend=False,
+                        hovertemplate=(f"🏦 Пассивный Ю (~оценка): {int(r['s_sel']):+d} контр. "
+                                       f"| z={r['z_sel']:+.2f} | conf={r['conf']:.2f}<extra></extra>")
+                    ), row=1, col=1)
+                    fig.add_annotation(
+                        x=r['x'], y=y_pos, text=f"{int(r['s_sel']):+d}", showarrow=False,
+                        font=dict(size=10, color='white', family='Arial, sans-serif'),
+                        bgcolor='rgba(20, 20, 20, 0.9)', bordercolor=m_col,
+                        borderwidth=1, borderpad=3, yshift=y_sh, row=1, col=1
+                    )
 
         # [NEW] Динамический размер маркера: аномальность контрактов к среднему по дню
         def dyn_size(d, avg):
@@ -583,7 +660,7 @@ else:
                                 add_yur_share_marker(candle['begin'], candle['low'], y_short, share, '#EF5350', -95, 'Юр: доля в росте short')
 
         fig.update_layout(
-            height=750 if is_mobile else 1000, template="plotly_dark",
+            height=(900 if _show_passive else 750) if is_mobile else (1150 if _show_passive else 1000), template="plotly_dark",
             hovermode='x unified',
             xaxis=dict(
                 tickformat="%d.%m<br>%H:%M",
