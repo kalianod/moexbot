@@ -40,7 +40,8 @@ state_keys = [
     'show_fiz_buy_minus', 'show_fiz_sell_minus',
     'show_yur_buy_plus', 'show_yur_sell_plus',
     'show_yur_buy_minus', 'show_yur_sell_minus', 'show_profile_oi',
-    'show_concentration', 'show_yur_signal', 'show_passive_yur'
+    'show_concentration', 'show_yur_signal', 'show_passive_yur', 'show_absorption',
+    'show_divergence', 'show_breakout'
 ]
 
 query_params = st.query_params
@@ -88,7 +89,7 @@ hide_export = st.query_params.get('hide_export', 'false').lower() == 'true'
 
 # ==================== КНОПКИ ФИЛЬТРОВ ====================
 st.markdown("---")
-btn_cols = st.columns(13)
+btn_cols = st.columns(16)
 
 buttons_config = [
     ("btn_clusters", "show_clusters", "Кластера Ф/Ю"),
@@ -104,6 +105,9 @@ buttons_config = [
     ("btn_concentration", "show_concentration", "Концентрация"),
     ("btn_yur_signal", "show_yur_signal", "Сигнал юрлиц"),
     ("btn_passive_yur", "show_passive_yur", "🏦 Пассивный Ю"),
+    ("btn_absorption", "show_absorption", "🏦 Абсорбция"),
+    ("btn_divergence", "show_divergence", "⬢ Дивергенция"),
+    ("btn_breakout", "show_breakout", "⚡ Пробой"),
 ]
 
 # Семантика цвета кнопок (эмодзи) + Сброс
@@ -258,6 +262,38 @@ def load_passive(symbol):
 
 df_fiz, df_yur, df_candles, df_bar_stats = load_data(symbol, start_date, end_date, timeframe)
 df_passive = load_passive(symbol)
+
+# [NEW 2026-09-01] Загрузка абсорбции юрлиц (таблица yur_absorption)
+@st.cache_data(ttl=60)
+def load_absorption(symbol):
+    conn = sqlite3.connect(DB_PATH)
+    q = """SELECT bar_ts, class, jur_z, aggr_abs, aggr_z, ret_bp, resilience_bp, resilience_z, abs_level
+           FROM yur_absorption WHERE symbol=? AND abs_level IS NOT NULL ORDER BY bar_ts"""
+    dfa = pd.read_sql_query(q, conn, params=(symbol,), parse_dates=['bar_ts'])
+    conn.close()
+    return dfa
+
+df_absorption = load_absorption(symbol)
+
+# [NEW 2026-09-01] Загрузка дивергенции Ф/Ю и пробоев (ромб+whale)
+@st.cache_data(ttl=60)
+def load_divergence(symbol):
+    conn = sqlite3.connect(DB_PATH)
+    q = "SELECT bar_ts, div_type, d_net_f, d_net_y FROM divergence_events WHERE symbol=? ORDER BY bar_ts"
+    d = pd.read_sql_query(q, conn, params=(symbol,), parse_dates=['bar_ts'])
+    conn.close()
+    return d
+
+@st.cache_data(ttl=60)
+def load_breakout(symbol):
+    conn = sqlite3.connect(DB_PATH)
+    q = "SELECT bar_ts, combo_type FROM breakout_combo WHERE symbol=? ORDER BY bar_ts"
+    d = pd.read_sql_query(q, conn, params=(symbol,), parse_dates=['bar_ts'])
+    conn.close()
+    return d
+
+df_divergence = load_divergence(symbol)
+df_breakout = load_breakout(symbol)
 
 # ==================== ГРАФИК ====================
 if df_candles.empty:
@@ -441,6 +477,80 @@ else:
                         bgcolor='rgba(20, 20, 20, 0.9)', bordercolor=m_col,
                         borderwidth=1, borderpad=3, yshift=y_sh, row=1, col=1
                     )
+
+        # ========== [NEW 2026-09-01] АБСОРБЦИЯ ЮРЛИЦ: ромбы на свечах (только L2+L3) ==========
+        if st.session_state.show_absorption and not df_absorption.empty:
+            da = df_absorption[df_absorption['abs_level'].str.startswith(('L2', 'L3'))].copy()
+            da['x'] = da['bar_ts'] - pd.Timedelta(minutes=5)  # конец бара -> begin свечи
+            da = da.merge(df_candles[['begin', 'high', 'low']], left_on='x', right_on='begin', how='inner')
+            if not da.empty:
+                _abs_gap = (float(df_candles['high'].max()) - float(df_candles['low'].min())) * 0.03
+                for _, r in da.iterrows():
+                    is_buy = r['abs_level'].endswith('BUY')
+                    lvl = r['abs_level'][:2]                 # L2 / L3
+                    m_col = '#26A69A' if is_buy else '#EF5350'
+                    y_pos = r['high'] + _abs_gap if is_buy else r['low'] - _abs_gap
+                    fig.add_trace(go.Scatter(
+                        x=[r['x']], y=[y_pos], mode='markers',
+                        marker=dict(symbol='diamond', size=16 if lvl == 'L3' else 12,
+                                    color=m_col, line=dict(width=1.5, color='white')),
+                        showlegend=False,
+                        hovertemplate=(
+                            f"<b>🏦 Абсорбция юрлиц: {'ПОКУПКА' if is_buy else 'ПРОДАЖА'} ({lvl})</b><br>"
+                            f"Бар: {r['x'].strftime('%d.%m %H:%M')}<br>"
+                            f"Класс юрлиц: {r['class']}<br>"
+                            f"Юрлица (jur_z): {r['jur_z']:+.2f}<br>"
+                            f"Агрессия рынка (aggr_z): {r['aggr_z']:+.2f} "
+                            f"({'продажи' if r['aggr_z'] < 0 else 'покупки'})<br>"
+                            f"Цена бара: {r['ret_bp']:+.1f} bp<br>"
+                            f"Устойчивость: {r['resilience_bp']:+.1f} bp "
+                            f"(z: {r['resilience_z']:+.2f})<br>"
+                            f"<i>вероятно, юрлица поглощают лимитками</i><extra></extra>")
+                    ), row=1, col=1)
+
+        # ========== [NEW 2026-09-01] СЛОЙ A: ДИВЕРГЕНЦИЯ Ф/Ю (шестиугольники, 4x gap) ==========
+        if st.session_state.show_divergence and not df_divergence.empty:
+            dd = df_divergence.copy()
+            dd['x'] = dd['bar_ts'] - pd.Timedelta(minutes=5)
+            dd = dd.merge(df_candles[['begin', 'high', 'low']], left_on='x', right_on='begin', how='inner')
+            if not dd.empty:
+                _div_gap = (float(df_candles['high'].max()) - float(df_candles['low'].min())) * 0.04
+                for _, r in dd.iterrows():
+                    is_bull = r['div_type'] == 'F_BUY_Y_SELL'
+                    m_col = '#26A69A' if is_bull else '#EF5350'
+                    y_pos = r['high'] + _div_gap if is_bull else r['low'] - _div_gap
+                    tip = (f"<b>⬢ Дивергенция: Ф {'покупают' if is_bull else 'продают'} / "
+                           f"Ю {'продают' if is_bull else 'покупают'}</b><br>"
+                           f"Бар: {r['x'].strftime('%d.%m %H:%M')}<br>"
+                           f"Ф нетто: {r['d_net_f']:+,.0f} | Ю нетто: {r['d_net_y']:+,.0f}<br>"
+                           + ("История: +99bp за 2 дня, WR77% → лонг, горизонт 1-2 дня<extra></extra>" if is_bull
+                              else "История: встречный сигнал — проверяйте контекст тренда<extra></extra>"))
+                    fig.add_trace(go.Scatter(
+                        x=[r['x']], y=[y_pos], mode='markers',
+                        marker=dict(symbol='hexagon2', size=12, color=m_col,
+                                    line=dict(width=1.5, color='white')),
+                        showlegend=False, hovertemplate=tip), row=1, col=1)
+
+        # ========== [NEW 2026-09-01] СЛОЙ B: ПРОБОЙ ромб+whale (звёзды, 5x gap) ==========
+        if st.session_state.show_breakout and not df_breakout.empty:
+            bb = df_breakout.copy()
+            bb['x'] = bb['bar_ts'] - pd.Timedelta(minutes=5)
+            bb = bb.merge(df_candles[['begin', 'high', 'low']], left_on='x', right_on='begin', how='inner')
+            if not bb.empty:
+                _br_gap = (float(df_candles['high'].max()) - float(df_candles['low'].min())) * 0.05
+                for _, r in bb.iterrows():
+                    is_up = r['combo_type'] == 'BREAK_UP'
+                    m_col = '#FFD700' if is_up else '#FF8C00'
+                    y_pos = r['high'] + _br_gap if is_up else r['low'] - _br_gap
+                    tip = (f"<b>⚡ Пробой стены юрлица</b><br>"
+                           f"Бар: {r['x'].strftime('%d.%m %H:%M')}<br>"
+                           + ("Ромб SELL + Whale BUY → история: +99bp/2д, WR80% → лонг 1-2 дня<extra></extra>" if is_up
+                              else "Ромб BUY + Whale SELL → ложный пробой: кратко вниз, разворот вверх (4ч-2д)<extra></extra>"))
+                    fig.add_trace(go.Scatter(
+                        x=[r['x']], y=[y_pos], mode='markers',
+                        marker=dict(symbol='star', size=16 if is_up else 14, color=m_col,
+                                    line=dict(width=1.5, color='black')),
+                        showlegend=False, hovertemplate=tip), row=1, col=1)
 
         # [NEW] Динамический размер маркера: аномальность контрактов к среднему по дню
         def dyn_size(d, avg):
