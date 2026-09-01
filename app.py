@@ -41,7 +41,7 @@ state_keys = [
     'show_yur_buy_plus', 'show_yur_sell_plus',
     'show_yur_buy_minus', 'show_yur_sell_minus', 'show_profile_oi',
     'show_concentration', 'show_yur_signal', 'show_passive_yur', 'show_absorption',
-    'show_divergence', 'show_breakout', 'show_squeeze'
+    'show_divergence', 'show_breakout', 'show_squeeze', 'show_trap'
 ]
 
 query_params = st.query_params
@@ -89,7 +89,7 @@ hide_export = st.query_params.get('hide_export', 'false').lower() == 'true'
 
 # ==================== КНОПКИ ФИЛЬТРОВ ====================
 st.markdown("---")
-btn_cols = st.columns(17)
+btn_cols = st.columns(18)
 
 buttons_config = [
     ("btn_clusters", "show_clusters", "Кластера Ф/Ю"),
@@ -109,6 +109,7 @@ buttons_config = [
     ("btn_divergence", "show_divergence", "⬢ Дивергенция"),
     ("btn_breakout", "show_breakout", "⚡ Пробой"),
     ("btn_squeeze", "show_squeeze", "🔥 Сквиз"),
+    ("btn_trap", "show_trap", "�� Ловушка"),
 ]
 
 # Семантика цвета кнопок (эмодзи) + Сброс
@@ -306,6 +307,17 @@ def load_squeeze(symbol):
     return d
 
 df_squeeze = load_squeeze(symbol)
+
+# [NEW 2026-09-01] Загрузка ловушек юрлиц
+@st.cache_data(ttl=60)
+def load_trap(symbol):
+    conn = sqlite3.connect(DB_PATH)
+    q = "SELECT bar_ts, d_net_y, d_oi FROM trap_events WHERE symbol=? ORDER BY bar_ts"
+    d = pd.read_sql_query(q, conn, params=(symbol,), parse_dates=['bar_ts'])
+    conn.close()
+    return d
+
+df_trap = load_trap(symbol)
 
 # ==================== ГРАФИК ====================
 if df_candles.empty:
@@ -582,6 +594,27 @@ else:
                             f"Бар: {r['x'].strftime('%d.%m %H:%M')}<br>"
                             f"Ю нетто: {r['d_net_y']:+,.0f} | OI: {r['d_oi']:+,.0f}<br>"
                             f"История: +103bp за 2 дня, WR75% → лонг 1-2 дня<extra></extra>")
+                    ), row=1, col=1)
+
+        # ========== [NEW 2026-09-01] СЛОЙ D: 🪤 ЛОВУШКА ЮРЛИЦ (оранжевые пятиугольники, 7x gap) ==========
+        if st.session_state.show_trap and not df_trap.empty:
+            tp = df_trap.copy()
+            tp['x'] = tp['bar_ts'] - pd.Timedelta(minutes=5)
+            tp = tp.merge(df_candles[['begin', 'high', 'low']], left_on='x', right_on='begin', how='inner')
+            if not tp.empty:
+                _tp_gap = (float(df_candles['high'].max()) - float(df_candles['low'].min())) * 0.07
+                for _, r in tp.iterrows():
+                    fig.add_trace(go.Scatter(
+                        x=[r['x']], y=[r['high'] + _tp_gap], mode='markers',
+                        marker=dict(symbol='pentagon', size=13, color='#FF6D00',
+                                    line=dict(width=1.5, color='black')),
+                        showlegend=False,
+                        hovertemplate=(
+                            f"<b>🪤 Ловушка юрлиц: они открыли новые шорты</b><br>"
+                            f"Бар: {r['x'].strftime('%d.%m %H:%M')}<br>"
+                            f"Ю нетто: {r['d_net_y']:+,.0f} | OI: {r['d_oi']:+,.0f} (растёт)<br>"
+                            f"История: +100bp за 2 дня, WR75% → лонг 1-2 дня<br>"
+                            f"<i>контрариан против юрлиц: их шорты вынесет ростом</i><extra></extra>")
                     ), row=1, col=1)
 
         # [NEW] Динамический размер маркера: аномальность контрактов к среднему по дню

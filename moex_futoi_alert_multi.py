@@ -410,6 +410,21 @@ def check_divergence_breakout(symbol, current_time):
     except Exception as e:
         print(f"[{symbol}] squeeze check error: {e}")
 
+    # [NEW 2026-09-01] 🪤 Ловушка юрлиц (YUR SELL + OI↑)
+    try:
+        trp = conn.execute(
+            "SELECT bar_ts, d_net_y, d_oi FROM trap_events "
+            "WHERE symbol=? AND bar_ts BETWEEN ? AND ?",
+            (symbol, t_from, t_to)).fetchall()
+        for bar_ts, d_net_y, d_oi in trp:
+            messages.append(
+                f"🪤 *{symbol} | Ловушка юрлиц*\n"
+                f"⏰ `{bar_ts[11:16]}` | Ю шортят: `{d_net_y:+,.0f}` | OI: `{d_oi:+,.0f}`\n"
+                f"📊 Контрариан: юрлица откроют шорты → их вынесет ростом\n"
+                f"📊 +100bp за 2 дня, WR75% → лонг, горизонт 1-2 дня")
+    except Exception as e:
+        print(f"[{symbol}] trap check error: {e}")
+
     conn.close()
     return messages
 
