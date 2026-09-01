@@ -8,10 +8,10 @@ SYMBOLS = ['SiU6', 'CRU6', 'MXU6']
 W, MP = 96, 48
 
 conn = sqlite3.connect(DB)
-conn.execute("DROP TABLE IF EXISTS trap_events")
-conn.execute("""CREATE TABLE trap_events (
+conn.execute("""CREATE TABLE IF NOT EXISTS trap_events (
     symbol TEXT, bar_ts TEXT, d_net_y REAL, d_oi REAL, direction TEXT,
     PRIMARY KEY(symbol, bar_ts, direction))""")
+conn.execute("DELETE FROM trap_events")
 
 for sym in SYMBOLS:
     yur = pd.read_sql_query("SELECT systime,pos_long,pos_short FROM futoi_data "

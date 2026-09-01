@@ -8,10 +8,10 @@ SYMBOLS = ['SiU6', 'CRU6', 'MXU6']
 W, MP = 96, 48
 
 conn = sqlite3.connect(DB)
-conn.execute("DROP TABLE IF EXISTS squeeze_events")
-conn.execute("""CREATE TABLE squeeze_events (
+conn.execute("""CREATE TABLE IF NOT EXISTS squeeze_events (
     symbol TEXT, bar_ts TEXT, d_net_y REAL, d_oi REAL, ret_bar REAL, direction TEXT,
     PRIMARY KEY(symbol, bar_ts, direction))""")
+conn.execute("DELETE FROM squeeze_events")
 
 for sym in SYMBOLS:
     yur = pd.read_sql_query("SELECT systime,pos_long,pos_short FROM futoi_data "
