@@ -400,7 +400,7 @@ def check_divergence_breakout(symbol, current_time):
     try:
         sqz = conn.execute(
             "SELECT bar_ts, d_net_y, d_oi FROM squeeze_events "
-            "WHERE symbol=? AND bar_ts BETWEEN ? AND ?",
+            "WHERE symbol=? AND direction='LONG' AND bar_ts BETWEEN ? AND ?",
             (symbol, t_from, t_to)).fetchall()
         for bar_ts, d_net_y, d_oi in sqz:
             messages.append(
@@ -414,7 +414,7 @@ def check_divergence_breakout(symbol, current_time):
     try:
         trp = conn.execute(
             "SELECT bar_ts, d_net_y, d_oi FROM trap_events "
-            "WHERE symbol=? AND bar_ts BETWEEN ? AND ?",
+            "WHERE symbol=? AND direction='LONG' AND bar_ts BETWEEN ? AND ?",
             (symbol, t_from, t_to)).fetchall()
         for bar_ts, d_net_y, d_oi in trp:
             messages.append(
