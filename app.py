@@ -301,7 +301,7 @@ df_breakout = load_breakout(symbol)
 @st.cache_data(ttl=60)
 def load_squeeze(symbol):
     conn = sqlite3.connect(DB_PATH)
-    q = "SELECT bar_ts, d_net_y, d_oi FROM squeeze_events WHERE symbol=? ORDER BY bar_ts"
+    q = "SELECT bar_ts, d_net_y, d_oi, direction FROM squeeze_events WHERE symbol=? ORDER BY bar_ts"
     d = pd.read_sql_query(q, conn, params=(symbol,), parse_dates=['bar_ts'])
     conn.close()
     return d
@@ -312,7 +312,7 @@ df_squeeze = load_squeeze(symbol)
 @st.cache_data(ttl=60)
 def load_trap(symbol):
     conn = sqlite3.connect(DB_PATH)
-    q = "SELECT bar_ts, d_net_y, d_oi FROM trap_events WHERE symbol=? ORDER BY bar_ts"
+    q = "SELECT bar_ts, d_net_y, d_oi, direction FROM trap_events WHERE symbol=? ORDER BY bar_ts"
     d = pd.read_sql_query(q, conn, params=(symbol,), parse_dates=['bar_ts'])
     conn.close()
     return d
@@ -584,16 +584,20 @@ else:
             if not ss.empty:
                 _sq_gap = (float(df_candles['high'].max()) - float(df_candles['low'].min())) * 0.06
                 for _, r in ss.iterrows():
+                    is_long = r['direction'] == 'LONG'
+                    y_pos = r['high'] + _sq_gap if is_long else r['low'] - _sq_gap
+                    if is_long:
+                        title, stat = "�� Short Squeeze: юрлица закрывают шорты → ЛОНГ", "История: +103bp/2д, WR75% → лонг 1-2 дня"
+                    else:
+                        title, stat = "🩸 Long Squeeze: юрлица закрывают лонги → ШОРТ", "На бычьей выборке слаб (WR вниз 36%) — наблюдать"
                     fig.add_trace(go.Scatter(
-                        x=[r['x']], y=[r['high'] + _sq_gap], mode='markers',
-                        marker=dict(symbol='triangle-up', size=14, color='#9C27B0',
+                        x=[r['x']], y=[y_pos], mode='markers',
+                        marker=dict(symbol='triangle-up' if is_long else 'triangle-down', size=14,
+                                    color='#9C27B0' if is_long else '#6A1B9A',
                                     line=dict(width=1.5, color='white')),
                         showlegend=False,
-                        hovertemplate=(
-                            f"<b>🔥 Short Squeeze: юрлица закрывают шорты</b><br>"
-                            f"Бар: {r['x'].strftime('%d.%m %H:%M')}<br>"
-                            f"Ю нетто: {r['d_net_y']:+,.0f} | OI: {r['d_oi']:+,.0f}<br>"
-                            f"История: +103bp за 2 дня, WR75% → лонг 1-2 дня<extra></extra>")
+                        hovertemplate=(f"<b>{title}</b><br>Бар: {r['x'].strftime('%d.%m %H:%M')}<br>"
+                                       f"Ю нетто: {r['d_net_y']:+,.0f} | OI: {r['d_oi']:+,.0f}<br>{stat}<extra></extra>")
                     ), row=1, col=1)
 
         # ========== [NEW 2026-09-01] СЛОЙ D: 🪤 ЛОВУШКА ЮРЛИЦ (оранжевые пятиугольники, 7x gap) ==========
@@ -604,17 +608,20 @@ else:
             if not tp.empty:
                 _tp_gap = (float(df_candles['high'].max()) - float(df_candles['low'].min())) * 0.07
                 for _, r in tp.iterrows():
+                    is_long = r['direction'] == 'LONG'
+                    y_pos = r['high'] + _tp_gap if is_long else r['low'] - _tp_gap
+                    if is_long:
+                        title, stat = "🪤 Ловушка юрлиц: открыли шорты → ЛОНГ", "История: +100bp/2д, WR75% → лонг 1-2 дня"
+                    else:
+                        title, stat = "🎯 Ловушка покупателей: юрлица лонгуют → ШОРТ", "На бычьей выборке слаб — наблюдать (для медвежьего режима)"
                     fig.add_trace(go.Scatter(
-                        x=[r['x']], y=[r['high'] + _tp_gap], mode='markers',
-                        marker=dict(symbol='pentagon', size=13, color='#FF6D00',
+                        x=[r['x']], y=[y_pos], mode='markers',
+                        marker=dict(symbol='pentagon', size=13,
+                                    color='#FF6D00' if is_long else '#E65100',
                                     line=dict(width=1.5, color='black')),
                         showlegend=False,
-                        hovertemplate=(
-                            f"<b>🪤 Ловушка юрлиц: они открыли новые шорты</b><br>"
-                            f"Бар: {r['x'].strftime('%d.%m %H:%M')}<br>"
-                            f"Ю нетто: {r['d_net_y']:+,.0f} | OI: {r['d_oi']:+,.0f} (растёт)<br>"
-                            f"История: +100bp за 2 дня, WR75% → лонг 1-2 дня<br>"
-                            f"<i>контрариан против юрлиц: их шорты вынесет ростом</i><extra></extra>")
+                        hovertemplate=(f"<b>{title}</b><br>Бар: {r['x'].strftime('%d.%m %H:%M')}<br>"
+                                       f"Ю нетто: {r['d_net_y']:+,.0f} | OI: {r['d_oi']:+,.0f}<br>{stat}<extra></extra>")
                     ), row=1, col=1)
 
         # [NEW] Динамический размер маркера: аномальность контрактов к среднему по дню
