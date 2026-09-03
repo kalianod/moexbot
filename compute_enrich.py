@@ -50,6 +50,13 @@ for sym in SYMBOLS:
     df['z_v25_mad'] = robust_z(sz).values
     df['z_dj_mad'] = robust_z(df['delta_jur']).values
 
+    # forward 30m (bp) из свечей
+    cnd = pd.read_sql_query("SELECT begin, close FROM candles_cache WHERE symbol=? AND period='5min' ORDER BY begin",
+        conn, params=(sym,), parse_dates=['begin']).set_index('begin').sort_index()
+    cnd['fwd30_bp'] = (cnd['close'].shift(-6) / cnd['close'] - 1) * 1e4
+    cnd.index = cnd.index + pd.Timedelta(minutes=5)  # begin+5 = bar_ts
+    df = df.join(cnd[['fwd30_bp']], how='left')
+
     # class: directional buy/sell (для абсорбции)
     th_l = df['d_long'].abs().rolling(W,MP).quantile(0.75).shift(1)
     th_s = df['d_short'].abs().rolling(W,MP).quantile(0.75).shift(1)
@@ -65,9 +72,10 @@ for sym in SYMBOLS:
             float(r['z_v25_mad']) if pd.notna(r['z_v25_mad']) else None,
             float(r['z_dj_mad']) if pd.notna(r['z_dj_mad']) else None,
             float(r['d_long']), float(r['d_short']), float(r['d_gross']), r['class'],
+            float(r['fwd30_bp']) if pd.notna(r['fwd30_bp']) else None,
             sym, t.strftime('%Y-%m-%d %H:%M:00')) for t, r in df.iterrows()]
     conn.executemany("UPDATE legal_passive_estimate SET aggr_abs=?, score_v25=?, z_v25=?, z_v25_mad=?, "
-                     "z_dj_mad=?, d_long=?, d_short=?, d_gross=?, class=? WHERE symbol=? AND bar_ts=?", upd)
+                     "z_dj_mad=?, d_long=?, d_short=?, d_gross=?, class=?, fwd30_bp=? WHERE symbol=? AND bar_ts=?", upd)
     conn.commit()
     n_dir = (df['class'] != 'other').sum()
     print(f"[{sym}] обогащено строк: {len(upd)}, directional: {n_dir}")

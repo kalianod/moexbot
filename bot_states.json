@@ -3,7 +3,7 @@
     "IMOEX": {
       "current_signal": "ЗАКРЫТЬ ХЕДЖ",
       "last_price": 2135.16,
-      "last_update": "2026-08-31T16:10:30.150687",
+      "last_update": "2026-09-02T16:10:59.852661",
       "signal_count": 1,
       "last_signal_time": "2026-08-31T16:10:30.150682",
       "position": "hedge_closed"
@@ -11,7 +11,7 @@
     "CNYRUB_TOM": {
       "current_signal": "ОТКРЫТЬ ХЕДЖ",
       "last_price": 12.927,
-      "last_update": "2026-08-31T16:10:30.154617",
+      "last_update": "2026-09-02T16:10:59.866037",
       "signal_count": 1,
       "last_signal_time": "2026-08-30T18:06:29.845916",
       "position": "hedge_open"
@@ -19,17 +19,17 @@
     "GLDRUB_TOM": {
       "current_signal": "ЗАКРЫТЬ ХЕДЖ",
       "last_price": 12254.0,
-      "last_update": "2026-08-31T16:10:30.157407",
+      "last_update": "2026-09-02T16:10:59.879641",
       "signal_count": 1,
       "last_signal_time": "2026-08-30T18:06:29.854616",
       "position": "hedge_closed"
     }
   },
   "global_stats": {
-    "total_checks": 4,
+    "total_checks": 8,
     "total_signals": 3,
     "start_time": "2026-08-30T18:06:29.829217",
-    "days_active": 3
+    "days_active": 5
   },
-  "last_save": "2026-09-01T07:10:49.141513"
+  "last_save": "2026-09-03T07:10:38.967005"
 }

@@ -466,7 +466,7 @@ else:
                     f"Residual ΔYUR: {s:+,.0f} контр. | z: {z:+.2f}<br>"
                     f"ΔYUR: {d:+,.0f} | strength: {c:.2f}<br>"
                     f"Класс: {cl}<br>"
-                    f"Forward 30m: {fw:+.1f} bp<extra></extra>"
+                    f"Forward 30m: {(f'{fw:+.1f}' if isinstance(fw, (int, float)) else 'n/a')} bp<extra></extra>"
                     for t, s, z, d, c, cl, fw in zip(
                         dp['x'], dp['s_sel'], dp['z_sel'], dp['delta_jur'],
                         dp['conf'], dp['class'], dp['fwd30_bp'])
