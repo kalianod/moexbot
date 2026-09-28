@@ -743,15 +743,32 @@ with tab_control:
     if st.session_state.get("last_control_result"):
         res = st.session_state["last_control_result"]
         status_code = res.get("_status_code")
+        action = res.get("action", "")
+        
         if res.get("ok"):
-            st.success(f"✅ Успех: HTTP {status_code}")
+            # Определяем тип действия и показываем соответствующее сообщение
+            if action == "settings":
+                st.success("✅ Настройки успешно обновлены")
+            elif action == "start_pair":
+                pair = res.get("pair", "")
+                st.success(f"✅ Запуск торговли {pair} инициирован")
+            elif action == "emergency_stop":
+                st.success("✅ Экстренная остановка выполнена")
+            elif action == "restart_grid":
+                st.success("✅ Перезапуск сетки инициирован")
+            else:
+                st.success(f"✅ Успех: HTTP {status_code}")
         elif status_code == 423:
-            st.warning(f"🔒 Управление выключено: HTTP {status_code}. {res.get('error')}")
+            st.warning(f"🔒 Управление выключено: {res.get('error', 'ENABLE_TRADING_CONTROL=false')}")
         elif status_code == 428:
-            st.error(f"⚠️ Требуется подтверждение: HTTP {status_code}. {res.get('error')}")
+            st.error(f"⚠️ Требуется подтверждение: {res.get('error')}")
         else:
-            st.error(f"❌ Ошибка: HTTP {status_code}. {res.get('error') or res}")
-        st.json(res)
+            st.error(f"❌ Ошибка: {res.get('error') or 'Неизвестная ошибка'}")
+        
+        # Показываем JSON только в режиме отладки
+        with st.expander("🔍 Детали ответа (для отладки)"):
+            st.json(res)
+        
         st.markdown("---")
 
     if not enable_control:
