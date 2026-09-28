@@ -291,6 +291,74 @@ with tab_overview:
 
     st.markdown("---")
 
+    # [ADD 2026-09-28] Реальный PnL через /v5/execution/list
+    st.subheader("💰 Реальный PnL (Bybit execution history)")
+
+    pnl_symbol = active_pair or DEFAULT_SYMBOL
+    pnl_col1, pnl_col2 = st.columns([2, 3])
+    pnl_hours = pnl_col1.selectbox(
+        "Период",
+        options=[1, 6, 12, 24, 72, 168],
+        format_func=lambda x: f"{x} ч" if x < 48 else f"{x//24} дн",
+        index=3,
+        key="pnl_hours"
+    )
+    pnl_limit = pnl_col2.select_slider(
+        "Макс. исполнений",
+        options=[50, 100, 200],
+        value=100,
+        key="pnl_limit"
+    )
+
+    if st.button("📊 Рассчитать реальный PnL", use_container_width=True, key="calc_pnl_btn"):
+        pnl_resp = api_get("/pnl", params={
+            "symbol": pnl_symbol,
+            "hours": int(pnl_hours),
+            "limit": int(pnl_limit),
+        })
+        st.session_state["real_pnl_summary"] = pnl_resp
+        st.session_state["real_pnl_symbol"] = pnl_symbol
+
+    pnl_resp = st.session_state.get("real_pnl_summary")
+    pnl_sym = st.session_state.get("real_pnl_symbol", pnl_symbol)
+
+    if pnl_resp:
+        if not pnl_resp.get("ok"):
+            st.error(f"Ошибка /pnl: {pnl_resp.get('error')}")
+        else:
+            summary = pnl_resp.get("summary", {})
+            executions = pnl_resp.get("executions", [])
+
+            p1, p2, p3, p4 = st.columns(4)
+            p1.metric("Buy сделок", summary.get("buy_count", 0))
+            p2.metric("Sell сделок", summary.get("sell_count", 0))
+            p3.metric("Комиссии, USDT", fmt_num(summary.get("total_fee"), 4))
+            p4.metric("Net flow, USDT", fmt_num(summary.get("net_flow"), 4))
+
+            realized_pnl = summary.get("realized_pnl", 0.0)
+            unrealized_pnl = summary.get("unrealized_pnl", 0.0)
+            
+            col_pnl1, col_pnl2 = st.columns(2)
+            if realized_pnl >= 0:
+                col_pnl1.success(f"✅ Реализованный PnL: **+{realized_pnl:.4f} USDT**")
+            else:
+                col_pnl1.error(f"❌ Реализованный PnL: **{realized_pnl:.4f} USDT**")
+            
+            if unrealized_pnl >= 0:
+                col_pnl2.info(f"📊 Нереализованный PnL: **+{unrealized_pnl:.4f} USDT**")
+            else:
+                col_pnl2.warning(f"📊 Нереализованный PnL: **{unrealized_pnl:.4f} USDT**")
+
+            if executions:
+                df_exec = pd.DataFrame(executions)
+                df_exec["time"] = df_exec["execTime"].apply(lambda x: ts_to_datetime(x)).dt.strftime("%Y-%m-%d %H:%M:%S")
+                show_cols = [c for c in ["time", "side", "execType", "price", "qty", "value", "fee"] if c in df_exec.columns]
+                st.dataframe(df_exec[show_cols], use_container_width=True, hide_index=True)
+    else:
+        st.info("Нажмите «Рассчитать реальный PnL» для загрузки данных с Bybit")
+
+    st.markdown("---")
+
     st.subheader("Сетка бота (grid_orders)")
     if not orders.get("ok"):
         st.error(f"Ошибка /orders: {orders.get('error')}")
