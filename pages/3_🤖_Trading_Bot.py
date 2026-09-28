@@ -614,7 +614,106 @@ with tab_chart:
             fig.update_yaxes(title_text="Price USDT", row=1, col=1)
             fig.update_yaxes(title_text="Volume", row=2, col=1)
 
-            st.plotly_chart(fig, use_container_width=True)
+            # [ADD 2026-09-29] Кнопка предпросмотра уровней
+            st.markdown("---")
+            st.subheader("🔮 Предпросмотр уровней сетки")
+            
+            preview_col1, preview_col2 = st.columns([3, 2])
+            with preview_col1:
+                preview_symbol = st.selectbox(
+                    "Пара для анализа",
+                    pair_options,
+                    index=pair_options.index(chart_symbol) if chart_symbol in pair_options else 0,
+                    key="preview_symbol"
+                )
+            with preview_col2:
+                st.write("")
+                st.write("")
+                if st.button("📊 Рассчитать уровни", use_container_width=True, key="calc_levels_btn"):
+                    preview_resp = api_get("/levels-preview", params={"symbol": preview_symbol})
+                    st.session_state["levels_preview"] = preview_resp
+                    st.session_state["levels_preview_symbol"] = preview_symbol
+            
+            preview_resp = st.session_state.get("levels_preview")
+            preview_sym = st.session_state.get("levels_preview_symbol", preview_symbol)
+            
+            if preview_resp:
+                if not preview_resp.get("ok"):
+                    st.error(f"Ошибка /levels-preview: {preview_resp.get('error')}")
+                else:
+                    current_price = preview_resp.get("current_price", 0)
+                    levels = preview_resp.get("levels", [])
+                    buy_count = preview_resp.get("buy_count", 0)
+                    sell_count = preview_resp.get("sell_count", 0)
+                    
+                    st.success(
+                        f"**{preview_sym}** | Текущая цена: **{current_price:.2f} USDT** | "
+                        f"Уровней: **{len(levels)}** (Buy: {buy_count}, Sell: {sell_count})"
+                    )
+                    
+                    if levels:
+                        # Таблица уровней
+                        df_levels = pd.DataFrame(levels)
+                        df_display = df_levels.rename(columns={
+                            'level': '#',
+                            'price': 'Цена',
+                            'type': 'Тип',
+                            'source': 'Источник',
+                            'timeframe': 'ТФ',
+                            'strength': 'Сила',
+                            'touch_count': 'Касания',
+                            'distance_percent': 'Расст. %',
+                            'value_usdt': 'Стоим. USDT',
+                            'expected_profit': 'Ожид. прибыль',
+                        })
+                        show_cols = ['#', 'Цена', 'Тип', 'Источник', 'ТФ', 'Сила', 'Касания', 'Расст. %', 'Стоим. USDT']
+                        st.dataframe(
+                            df_display[show_cols],
+                            use_container_width=True,
+                            hide_index=True,
+                            height=300
+                        )
+                        
+                        # Добавляем уровни на график свечей
+                        for lev in levels:
+                            price = lev['price']
+                            level_type = lev['type']
+                            source = lev['source']
+                            strength = lev['strength']
+                            
+                            color = "#26a69a" if level_type == "Buy" else "#ef5350"
+                            if source == "imbalance":
+                                dash = "dot"
+                                width = 1.5
+                            else:
+                                dash = "solid"
+                                width = 1
+                            
+                            if strength >= 7:
+                                width += 0.8
+                            
+                            label = f"{level_type} {price:.2f} ({source}/{strength})"
+                            fig.add_hline(
+                                y=price,
+                                line_color=color,
+                                line_dash=dash,
+                                line_width=width,
+                                annotation_text=label,
+                                annotation_position="top left",
+                                annotation_font_size=9,
+                                annotation_font_color=color,
+                                row=1,
+                                col=1,
+                            )
+                        
+                        st.plotly_chart(fig, use_container_width=True, key="chart_with_levels")
+                        st.info("💡 Уровни добавлены на график: сплошная = technical, пунктир = imbalance, толще = сильнее")
+                    else:
+                        st.warning("Уровни не рассчитаны")
+            else:
+                st.info("Нажмите 'Рассчитать уровни' для предварительного анализа уровней сетки")
+
+            st.markdown("---")
 
             # Trade table below chart
             st.write("Последние исполненные ордера Bybit")
