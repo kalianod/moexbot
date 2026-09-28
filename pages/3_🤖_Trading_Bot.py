@@ -335,19 +335,59 @@ with tab_overview:
             p3.metric("Комиссии, USDT", fmt_num(summary.get("total_fee"), 4))
             p4.metric("Net flow, USDT", fmt_num(summary.get("net_flow"), 4))
 
-            realized_pnl = summary.get("realized_pnl", 0.0)
-            unrealized_pnl = summary.get("unrealized_pnl", 0.0)
+            # PnL за выбранный период
+            period_pnl = summary.get("period_realized_pnl")
+            closed_trades = summary.get("closed_trades_count", 0)
+            period_fee = summary.get("period_total_fee", 0.0)
+            
+            # Общий накопительный PnL аккаунта (за всё время)
+            account_cum_pnl = summary.get("account_cumulative_pnl")
+            
+            # Нереализованный PnL по текущей позиции
+            pos_unrealized = summary.get("position_unrealized_pnl", 0.0)
+            pos_size = summary.get("position_size", 0)
+            pos_side = summary.get("position_side", "None")
+            
+            # Баланс
+            total_equity = summary.get("total_equity")
+            available_balance = summary.get("available_balance")
+            
+            st.markdown(f"**Закрытых позиций за период:** {closed_trades}")
             
             col_pnl1, col_pnl2 = st.columns(2)
-            if realized_pnl >= 0:
-                col_pnl1.success(f"✅ Реализованный PnL: **+{realized_pnl:.4f} USDT**")
-            else:
-                col_pnl1.error(f"❌ Реализованный PnL: **{realized_pnl:.4f} USDT**")
             
-            if unrealized_pnl >= 0:
-                col_pnl2.info(f"📊 Нереализованный PnL: **+{unrealized_pnl:.4f} USDT**")
-            else:
-                col_pnl2.warning(f"📊 Нереализованный PnL: **{unrealized_pnl:.4f} USDT**")
+            with col_pnl1:
+                st.markdown("**📊 PnL за выбранный период**")
+                if period_pnl is not None:
+                    if period_pnl >= 0:
+                        st.success(f"**+{period_pnl:.4f} USDT**")
+                    else:
+                        st.error(f"**{period_pnl:.4f} USDT**")
+                    st.caption(f"Комиссии за период: {period_fee:.4f} USDT")
+                else:
+                    st.info("Нет закрытых позиций за период")
+            
+            with col_pnl2:
+                st.markdown("**💰 Текущая позиция**")
+                if pos_size > 0:
+                    st.info(f"{pos_side} {pos_size:.4f}")
+                    if pos_unrealized >= 0:
+                        st.caption(f"Unrealized: +{pos_unrealized:.4f} USDT")
+                    else:
+                        st.caption(f"Unrealized: {pos_unrealized:.4f} USDT")
+                else:
+                    st.info("Позиция закрыта")
+            
+            st.markdown("---")
+            st.caption(f"💡 *Справочно: Общий накопительный PnL аккаунта: **{account_cum_pnl:.4f} USDT** (за всё время существования аккаунта)*" if account_cum_pnl is not None else "")
+            
+            if total_equity is not None and available_balance is not None:
+                try:
+                    eq_val = float(total_equity)
+                    ab_val = float(available_balance)
+                    st.caption(f"Баланс: equity {eq_val:.2f} USDT | доступно {ab_val:.2f} USDT")
+                except (ValueError, TypeError):
+                    st.caption(f"Баланс: equity {total_equity} USDT | доступно {available_balance} USDT")
 
             if executions:
                 df_exec = pd.DataFrame(executions)
