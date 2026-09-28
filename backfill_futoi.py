@@ -16,7 +16,7 @@ import os
 load_dotenv('/home/kalian/moexbot/.env')
 session.TOKEN = os.getenv('MOEXALGOPACK_TOKEN')
 DB = '/home/kalian/moexbot/futoi.db'
-SYMBOLS = ['SiU6', 'CRU6', 'MXU6']
+SYMBOLS = ['SiZ6', 'CRZ6', 'MXZ6']  # [MIGRATION 2026-09-23]
 D_START, D_END = date(2026, 6, 27), date(2026, 8, 31)
 
 conn = sqlite3.connect(DB)

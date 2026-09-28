@@ -12,12 +12,25 @@ import sys
 import sqlite3
 from datetime import datetime, date, timedelta
 from dotenv import load_dotenv
+# [PATCH 2026-09-23] Отключаем проверку SSL для moexalgo (как в коллекторе):
+# после обновления сертификата MOEX библиотека падает с CERTIFICATE_VERIFY_FAILED.
+import ssl
+try:
+    _default_ctx = ssl.create_default_context
+    def _no_verify_ctx(*args, **kwargs):
+        ctx = _default_ctx(*args, **kwargs)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+    ssl.create_default_context = _no_verify_ctx
+except Exception:
+    pass
 from moexalgo import session, Ticker
 import pandas as pd
 import time
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'futoi.db')
-SYMBOLS = ["SiU6", "CRU6", "MXU6"]
+SYMBOLS = ["SiZ6", "CRZ6", "MXZ6"]  # [MIGRATION 2026-09-23]
 
 load_dotenv()
 session.TOKEN = os.getenv("MOEXALGOPACK_TOKEN")

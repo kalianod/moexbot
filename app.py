@@ -53,7 +53,7 @@ for key in state_keys:
 
 # ==================== БОКОВАЯ ПАНЕЛЬ ====================
 st.sidebar.header("⚙️ Настройки")
-symbol = st.sidebar.selectbox("Инструмент:", ["SiU6", "CRU6", "MXU6"])
+symbol = st.sidebar.selectbox("Инструмент:", ["SiZ6", "CRZ6", "MXZ6", "SiU6", "CRU6", "MXU6"])  # [MIGRATION 2026-09-23]
 start_date = st.sidebar.date_input("Дата начала", value=date.today() - timedelta(days=2), format="DD.MM.YYYY")
 end_date = st.sidebar.date_input("Дата окончания", value=date.today(), format="DD.MM.YYYY")
 timeframe = st.sidebar.selectbox("Таймфрейм:", ["5M", "10M", "1H", "1D"])

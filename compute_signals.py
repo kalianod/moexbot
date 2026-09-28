@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 DB = '/home/kalian/moexbot/futoi.db'
-SYMBOLS = ['SiU6', 'CRU6', 'MXU6']
+SYMBOLS = ['SiZ6', 'CRZ6', 'MXZ6', 'SiU6', 'CRU6', 'MXU6']  # [MIGRATION 2026-09-23]
 W, MP = 96, 48
 
 conn = sqlite3.connect(DB)

@@ -91,7 +91,7 @@ def load_day(symbol, selected_date):
 
 # ---------- сайдбар ----------
 st.sidebar.header("⚙️ Параметры")
-symbol = st.sidebar.selectbox("Инструмент:", ["SiU6", "CRU6", "MXU6"])
+symbol = st.sidebar.selectbox("Инструмент:", ["SiZ6", "CRZ6", "MXZ6", "SiU6", "CRU6", "MXU6"])  # [MIGRATION 2026-09-23]
 selected_date = st.sidebar.date_input("Дата:", value=date.today() - timedelta(days=1), format="DD.MM.YYYY")
 
 yr = get_yur_range(symbol)

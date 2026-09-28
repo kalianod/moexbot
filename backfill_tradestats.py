@@ -16,7 +16,7 @@ import os
 load_dotenv('/home/kalian/moexbot/.env')
 session.TOKEN = os.getenv('MOEXALGOPACK_TOKEN')
 DB_PATH = '/home/kalian/moexbot/futoi.db'
-SYMBOLS = ['SiU6', 'CRU6', 'MXU6']
+SYMBOLS = ['SiZ6', 'CRZ6', 'MXZ6']  # [MIGRATION 2026-09-23]
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--days', type=int, default=14)
