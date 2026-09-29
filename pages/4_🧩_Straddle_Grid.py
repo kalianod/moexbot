@@ -594,6 +594,74 @@ else:
     st.info("Слотов пока нет. Они появятся после реального выставления APPROVED уровней.")
 
 st.markdown("---")
+st.subheader("🔄 Straddle Lifecycle (MVP-3.0)")
+st.caption(
+    "Автоматика выключена по умолчанию. Reconcile только читает открытые ордера Bybit "
+    "и обновляет локальное состояние слотов. Он не создаёт, не отменяет и не перемещает ордера."
+)
+
+lc1, lc2, lc3 = st.columns(3)
+
+with lc1:
+    if st.button("📡 Обновить статус lifecycle", use_container_width=True, key="sg_lc_status"):
+        st.session_state["straddle_lifecycle_status"] = api_request("GET", "/straddle/lifecycle/status")
+        st.rerun()
+
+with lc2:
+    if st.button("🔍 Reconcile dry-run", use_container_width=True, key="sg_lc_reconcile_dry"):
+        res = api_request("POST", "/straddle/reconcile", payload={"dry_run": True, "symbol": symbol})
+        st.session_state["straddle_lifecycle_report"] = res
+        if res and res.get("ok"):
+            st.session_state["straddle_action_result"] = {
+                "ok": True,
+                "message": (
+                    f"Dry-run reconcile: updated={len(res.get('updated', []) or [])}, "
+                    f"ghosts={len(res.get('ghosts', []) or [])}, "
+                    f"orphans={len(res.get('orphans', []) or [])}"
+                ),
+            }
+        else:
+            st.session_state["straddle_action_result"] = res or {"ok": False, "error": "no response"}
+        st.rerun()
+
+with lc3:
+    confirm_reconcile = st.checkbox(
+        "Подтверждаю применить reconcile к локальному состоянию",
+        key="sg_confirm_reconcile",
+    )
+    if st.button(
+        "💾 Reconcile apply",
+        use_container_width=True,
+        disabled=not confirm_reconcile,
+        key="sg_lc_reconcile_apply",
+    ):
+        res = api_request(
+            "POST",
+            "/straddle/reconcile",
+            payload={"dry_run": False, "confirm": True, "symbol": symbol},
+        )
+        finish_action(res, reload_draft=True, reload_slots=True)
+
+lc_status = st.session_state.get("straddle_lifecycle_status")
+if lc_status:
+    st.write("Статус lifecycle:")
+    st.json(lc_status)
+
+report = st.session_state.get("straddle_lifecycle_report")
+if report:
+    st.write("Последний отчёт reconcile:")
+    r1, r2, r3, r4 = st.columns(4)
+    r1.metric("Updated", len(report.get("updated", []) or []))
+    r2.metric("Unchanged", len(report.get("unchanged", []) or []))
+    r3.metric("Ghosts", len(report.get("ghosts", []) or []))
+    r4.metric("Orphans", len(report.get("orphans", []) or []))
+
+    if report.get("errors"):
+        st.error(report.get("errors"))
+
+    st.json(report.get("slots", []) or report)
+
+st.markdown("---")
 st.subheader("🆘 Straddle emergency stop")
 
 st.error(
