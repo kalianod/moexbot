@@ -421,6 +421,26 @@ with c8:
         help="Насколько внешняя часть выходит за границу безубытка. 10% означает 110% от B.",
     )
 
+c9, c10 = st.columns(2)
+
+with c9:
+    meta_mp = st.session_state.get("straddle_meta", {}).get("min_profit_percent")
+    mp_value = float(meta_mp) if meta_mp is not None else 0.8
+    min_profit_percent = st.number_input(
+        "Min profit % (exit)",
+        min_value=0.01,
+        max_value=10.0,
+        value=mp_value,
+        step=0.01,
+        format="%.2f",
+        key="sg_min_profit",
+        help="Профикит для встречного ордера. Buy entry: exit = entry_price * (1 + %). Sell entry: exit = entry_price * (1 - %).",
+    )
+
+with c10:
+    st.write("")
+    st.caption("Exit price будет рассчитываться от фактической средней цены исполнения entry.")
+
 if st.button("📊 Рассчитать и сохранить черновик", use_container_width=True, key="sg_calc"):
     if center <= 0:
         st.error("Центр стредла должен быть больше 0.")
@@ -441,6 +461,7 @@ if st.button("📊 Рассчитать и сохранить черновик",
             "ratio": ratio,
             "inner_fill_fraction": inner_fill_pct / 100.0,
             "outer_extra_fraction": outer_extra_pct / 100.0,
+            "min_profit_percent": min_profit_percent,
         }
         res = api_request("POST", "/straddle/draft", payload=payload)
         finish_action(res, reload_draft=True, reload_slots=True)
