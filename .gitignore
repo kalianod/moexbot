@@ -31,3 +31,5 @@ __pycache__/
 *.bak*
 *.bak_*
 __pycache__/
+.env
+_backups_history/
