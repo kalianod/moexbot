@@ -628,7 +628,48 @@ if lc_res and lc_ok:
             if report.get("errors"):
                 st.error(report.get("errors"))
             st.json(report.get("slots", []) or report)
+# ==================== УПРАВЛЕНИЕ СТАТУСАМИ ====================
 
+st.markdown("---")
+st.subheader("🔧 Управление статусами")
+
+cancelled_count = sum(1 for x in draft if str(x.get("state", "")).upper() == "CANCELLED")
+
+if cancelled_count > 0:
+    st.warning(f"⚠️ Найдено {cancelled_count} слотов в статусе CANCELLED (после Emergency Stop).")
+    if st.button(
+        f"♻️ Сбросить все CANCELLED → DRAFT ({cancelled_count})",
+        use_container_width=True,
+        key="sg_reset_all_cancelled",
+        type="secondary",
+    ):
+        res = api_request("POST", "/straddle/reset-cancelled", payload={})
+        if res and res.get("ok"):
+            st.success(f"✅ Сброшено {len(res.get('changed', []))} слотов")
+        else:
+            st.error(f"❌ Ошибка: {res.get('error', 'unknown')}")
+        finish_action(res, reload_draft=True, reload_slots=True)
+else:
+    st.info("✅ Нет слотов в статусе CANCELLED.")
+
+# Выбор конкретных слотов для изменения статуса
+if selected_slot_ids:
+    st.markdown(f"**Выбрано слотов:** {len(selected_slot_ids)}")
+    new_state = st.selectbox(
+        "Новый статус для выбранных",
+        ["DRAFT", "APPROVED"],
+        key="sg_new_state",
+    )
+    if st.button(
+        f"🔄 Применить статус {new_state} к выбранным",
+        use_container_width=True,
+        key="sg_apply_state",
+    ):
+        res = api_request("POST", "/straddle/set-state", payload={
+            "slot_ids": selected_slot_ids,
+            "state": new_state,
+        })
+        finish_action(res, reload_draft=True, reload_slots=True)
 # ==================== АВАРИЙНЫЙ КОНТУР ====================
 
 st.markdown("---")
