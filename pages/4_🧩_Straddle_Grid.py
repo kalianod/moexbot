@@ -662,6 +662,119 @@ if report:
     st.json(report.get("slots", []) or report)
 
 st.markdown("---")
+st.subheader("⚙️ Straddle Lifecycle Control (MVP-3.1)")
+st.caption(
+    "MVP-3.1: полный цикл без частичных исполнений. Partial entry/exit переводится в MANUAL_INTERVENTION. "
+    "Run-once apply выполняет один тик логики: entry fill → exit → exit fill → rearm. "
+    "Фоновый worker по умолчанию выключен."
+)
+
+lc1, lc2, lc3, lc4 = st.columns(4)
+
+with lc1:
+    if st.button("📡 Обновить статус lifecycle", use_container_width=True, key="sg_lc31_status"):
+        st.session_state["straddle_lifecycle_status"] = api_request("GET", "/straddle/lifecycle/status")
+        st.rerun()
+
+with lc2:
+    if st.button("🧪 Run once dry-run", use_container_width=True, key="sg_lc31_dry"):
+        res = api_request(
+            "POST",
+            "/straddle/lifecycle/run-once",
+            payload={"dry_run": True, "symbol": symbol},
+        )
+        st.session_state["straddle_lifecycle_report"] = res
+        if res and res.get("ok"):
+            st.session_state["straddle_action_result"] = {
+                "ok": True,
+                "message": f"Dry-run lifecycle: actions={len(res.get('actions', []) or [])}, transitions={len(res.get('transitions', []) or [])}",
+            }
+        else:
+            st.session_state["straddle_action_result"] = res or {"ok": False, "error": "no response"}
+        st.rerun()
+
+with lc3:
+    confirm_run_once = st.checkbox("Подтверждаю apply lifecycle (может создать реальные exit/rearm ордера)", key="sg_confirm_lc31_run")
+    if st.button(
+        "▶️ Run once apply",
+        use_container_width=True,
+        disabled=not confirm_run_once,
+        key="sg_lc31_apply",
+    ):
+        res = api_request(
+            "POST",
+            "/straddle/lifecycle/run-once",
+            payload={"dry_run": False, "confirm": True, "symbol": symbol},
+        )
+        finish_action(res, reload_draft=True, reload_slots=True)
+
+with lc4:
+    confirm_enable = st.checkbox("Подтверждаю включение фонового lifecycle worker", key="sg_confirm_lc31_enable")
+    if st.button("🟢 Enable lifecycle", use_container_width=True, disabled=not confirm_enable, key="sg_lc31_enable"):
+        res = api_request("POST", "/straddle/lifecycle/enable", payload={"confirm": True})
+        st.session_state["straddle_lifecycle_status"] = api_request("GET", "/straddle/lifecycle/status")
+        finish_action(res, reload_draft=True, reload_slots=True)
+
+lc5, lc6, lc7 = st.columns(3)
+
+with lc5:
+    confirm_disable = st.checkbox("Подтверждаю выключение lifecycle worker", key="sg_confirm_lc31_disable")
+    if st.button("🔴 Disable lifecycle", use_container_width=True, disabled=not confirm_disable, key="sg_lc31_disable"):
+        res = api_request("POST", "/straddle/lifecycle/disable", payload={"confirm": True})
+        st.session_state["straddle_lifecycle_status"] = api_request("GET", "/straddle/lifecycle/status")
+        finish_action(res, reload_draft=True, reload_slots=True)
+
+with lc6:
+    confirm_reset = st.checkbox("Подтверждаю сброс emergency flag", key="sg_confirm_lc31_reset")
+    if st.button("🧹 Emergency reset", use_container_width=True, disabled=not confirm_reset, key="sg_lc31_reset"):
+        res = api_request("POST", "/straddle/emergency-reset", payload={"confirm": True, "reason": "dashboard_reset"})
+        st.session_state["straddle_lifecycle_status"] = api_request("GET", "/straddle/lifecycle/status")
+        finish_action(res, reload_draft=False, reload_slots=False)
+
+with lc7:
+    st.write("")
+    st.write("")
+    if st.button(" Reconcile dry-run", use_container_width=True, key="sg_lc31_reconcile_dry"):
+        res = api_request("POST", "/straddle/reconcile", payload={"dry_run": True, "symbol": symbol})
+        st.session_state["straddle_lifecycle_report"] = res
+        if res and res.get("ok"):
+            st.session_state["straddle_action_result"] = {
+                "ok": True,
+                "message": (
+                    f"Dry-run reconcile: updated={len(res.get('updated', []) or [])}, "
+                    f"ghosts={len(res.get('ghosts', []) or [])}, "
+                    f"orphans={len(res.get('orphans', []) or [])}"
+                ),
+            }
+        else:
+            st.session_state["straddle_action_result"] = res or {"ok": False, "error": "no response"}
+        st.rerun()
+
+lc_status = st.session_state.get("straddle_lifecycle_status")
+if lc_status:
+    st.write("Эффективный статус lifecycle:")
+    st.json(lc_status)
+
+report = st.session_state.get("straddle_lifecycle_report")
+if report:
+    st.write("Последний lifecycle/reconcile отчёт:")
+
+    r1, r2, r3, r4, r5 = st.columns(5)
+    r1.metric("Actions", len(report.get("actions", []) or []))
+    r2.metric("Transitions", len(report.get("transitions", []) or []))
+    r3.metric("Applied", str(report.get("applied")))
+    r4.metric("Allow exit", str(report.get("allow_exit")))
+    r5.metric("Allow rearm", str(report.get("allow_rearm")))
+
+    if report.get("errors"):
+        st.error(report.get("errors"))
+
+    if report.get("position_error"):
+        st.warning(f"Position query error: {report.get('position_error')}")
+
+    st.json(report.get("slots", []) or report)
+
+st.markdown("---")
 st.subheader("🆘 Straddle emergency stop")
 
 st.error(
@@ -681,6 +794,45 @@ if st.button(
     res = api_request("POST", "/straddle/emergency-stop", payload=payload)
     finish_action(res, reload_draft=True, reload_slots=True)
 
+# [ADD Market Close] Секция закрытия позиции по рынку (reduce-only).
+# Добавлено как дополнение, существующий код не изменён.
+st.markdown("---")
+st.subheader("💥 Закрытие позиции по рынку")
+st.warning(
+    "Отправляет рыночный `reduce-only` ордер для полного закрытия текущей позиции. "
+    "Не отменяет лимитные ордера (для этого используй Emergency Stop выше). "
+    "Требует подтверждения."
+)
+
+mc1, mc2 = st.columns(2)
+with mc1:
+    if st.button("🔍 Dry-Run (проверить позицию)", key="sg_market_close_dry"):
+        res = api_request("POST", "/straddle/market-close",
+                          payload={"dry_run": True, "confirm": True, "symbol": symbol})
+        if res and res.get("ok"):
+            st.success(f"Dry-run: {res.get('action', 'unknown')}")
+            st.json(res)
+        else:
+            st.error(f"Ошибка: {res.get('error') if res else 'нет ответа'}")
+
+with mc2:
+    confirm_market_close = st.checkbox(
+        "Подтверждаю закрытие позиции по рынку",
+        key="sg_confirm_market_close"
+    )
+    if st.button(
+        "💥 Закрыть позицию по рынку",
+        key="sg_market_close_live",
+        disabled=not confirm_market_close,
+        type="primary",
+    ):
+        res = api_request("POST", "/straddle/market-close",
+                          payload={"dry_run": False, "confirm": True, "symbol": symbol})
+        if res and res.get("ok"):
+            st.success(f"Позиция закрыта: {res.get('action', 'unknown')}")
+            st.json(res)
+        else:
+            st.error(f"Ошибка: {res.get('error') if res else 'нет ответа'}")
 st.markdown("---")
 st.subheader("📈 График с уровнями")
 
