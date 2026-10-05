@@ -27,6 +27,15 @@ from streamlit_autorefresh import st_autorefresh
 load_dotenv()
 session.TOKEN = os.getenv('MOEXALGOPACK_TOKEN')
 
+def safe_ticker(symbol):
+    """Создаёт Ticker с временно сброшенным TOKEN для корректного резолва"""
+    saved_token = session.TOKEN
+    session.TOKEN = None
+    try:
+        return Ticker(symbol)
+    finally:
+        session.TOKEN = saved_token
+
 st.set_page_config(page_title="FUTOI Dashboard Pro", layout="wide", initial_sidebar_state="collapsed")
 
 # Автообновление каждые 5 минут (300000 мс)

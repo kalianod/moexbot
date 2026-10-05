@@ -19,6 +19,15 @@ from dotenv import load_dotenv
 load_dotenv('/home/kalian/moexbot/.env')
 session.TOKEN = os.getenv('MOEXALGOPACK_TOKEN')
 
+def safe_ticker(symbol):
+    """Создаёт Ticker с временно сброшенным TOKEN для корректного резолва"""
+    saved_token = session.TOKEN
+    session.TOKEN = None
+    try:
+        return safe_ticker(symbol)
+    finally:
+        session.TOKEN = saved_token
+
 st.set_page_config(page_title="Таблица FIZ/YUR", layout="wide")
 
 DB_PATH = '/home/kalian/moexbot/futoi.db'
@@ -55,7 +64,7 @@ def sync_day_from_api(symbol, d):
     missing = [g for g in ('FIZ', 'YUR') if have.get(g, 0) < 50]
     if not missing:
         return 0
-    df = Ticker(symbol).futoi(start=ds, end=ds)
+    df = safe_ticker(symbol).futoi(start=ds, end=ds)
     if df is None or df.empty:
         return -1
     df = df.copy()

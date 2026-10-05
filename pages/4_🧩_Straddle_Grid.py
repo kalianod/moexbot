@@ -430,7 +430,7 @@ edited = st.data_editor(
 selected_rows = edited[edited["select"] == True]
 selected_slot_ids = selected_rows["slot_id"].tolist()
 
-b1, b2 = st.columns([2, 1])
+b1, b2, b3 = st.columns([2, 2, 1])
 with b1:
     if st.button(
         f"🚀 Утвердить и Выставить выбранные ({len(selected_slot_ids)})",
@@ -454,6 +454,42 @@ with b1:
             finish_action(res_place, reload_draft=True, reload_slots=True)
 
 with b2:
+    if st.button(
+        f"❌ Отменить выбранные на бирже ({len(selected_slot_ids)})",
+        use_container_width=True,
+        disabled=len(selected_slot_ids) == 0,
+        key="sg_cancel_selected",
+        type="secondary",
+    ):
+        if selected_slot_ids:
+            cancelled = []
+            failed = []
+            for slot_id in selected_slot_ids:
+                res = api_request("POST", "/straddle/cancel-order", payload={
+                    "confirm": True,
+                    "symbol": symbol,
+                    "slot_id": slot_id,
+                })
+                if res and res.get("ok"):
+                    cancelled.append(slot_id)
+                else:
+                    failed.append(f"{slot_id}: {res.get('error', 'unknown') if res else 'no response'}")
+            
+            if cancelled:
+                st.success(f"✅ Отменено {len(cancelled)} ордеров: {', '.join(cancelled)}")
+            if failed:
+                st.error(f"❌ Ошибки: {'; '.join(failed)}")
+            
+            # Сбрасываем отменённые слоты в DRAFT
+            if cancelled:
+                res_state = api_request("POST", "/straddle/set-state", payload={
+                    "slot_ids": cancelled,
+                    "state": "DRAFT",
+                })
+            
+            finish_action({"ok": True, "message": f"Отменено {len(cancelled)} ордеров"}, reload_draft=True, reload_slots=True)
+
+with b3:
     if st.button("💾 Сохранить изменения", use_container_width=True, key="sg_save"):
         changed_levels = []
         for _, row in edited.iterrows():
