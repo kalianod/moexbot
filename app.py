@@ -118,8 +118,7 @@ buttons_config = [
     ("btn_divergence", "show_divergence", "⬢ Дивергенция"),
     ("btn_breakout", "show_breakout", "⚡ Пробой"),
     ("btn_squeeze", "show_squeeze", "🔥 Сквиз"),
-    ("btn_trap", "show_trap", "�� Ловушка"),
-]
+    ("btn_trap", "show_trap", "�� Ловушка")]
 
 # Семантика цвета кнопок (эмодзи) + Сброс
 for i, (btn_key, state_key, label) in enumerate(buttons_config):

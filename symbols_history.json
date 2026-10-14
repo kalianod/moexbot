@@ -1,0 +1,79 @@
+[
+  {
+    "timestamp": "2026-10-14T16:04:54.302900",
+    "action": "ADD_DRYRUN",
+    "symbol": "TESTX6",
+    "details": {
+      "backfill_days": 5,
+      "files_changed": 10,
+      "errors": [
+        "app.py: Паттерн не найден",
+        "pages/1_📊_Таблица_FIZ_YUR.py: Паттерн не найден",
+        "pages/2_💼_OTC_объём.py: Паттерн не найден"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-10-14T16:04:54.391376",
+    "action": "REMOVE_DRYRUN",
+    "symbol": "NGV6",
+    "details": {
+      "clean_db": false,
+      "files_changed": 13,
+      "db_records_deleted": 0,
+      "errors": []
+    }
+  },
+  {
+    "timestamp": "2026-10-14T16:04:54.463004",
+    "action": "REMOVE_DRYRUN",
+    "symbol": "SiZ6",
+    "details": {
+      "clean_db": false,
+      "files_changed": 13,
+      "db_records_deleted": 0,
+      "errors": []
+    }
+  },
+  {
+    "timestamp": "2026-10-14T16:08:14.944783",
+    "action": "ADD_DRYRUN",
+    "symbol": "TESTX6",
+    "details": {
+      "backfill_days": 5,
+      "files_changed": 13,
+      "errors": []
+    }
+  },
+  {
+    "timestamp": "2026-10-14T16:09:17.046734",
+    "action": "ADD_DRYRUN",
+    "symbol": "TESTX6",
+    "details": {
+      "backfill_days": 5,
+      "files_changed": 13,
+      "errors": []
+    }
+  },
+  {
+    "timestamp": "2026-10-14T16:12:42.904235",
+    "action": "ADD",
+    "symbol": "NGZ6",
+    "details": {
+      "backfill_days": 1,
+      "files_changed": 13,
+      "errors": []
+    }
+  },
+  {
+    "timestamp": "2026-10-14T16:12:43.253604",
+    "action": "REMOVE",
+    "symbol": "NGZ6",
+    "details": {
+      "clean_db": true,
+      "files_changed": 13,
+      "db_records_deleted": 1330,
+      "errors": []
+    }
+  }
+]
