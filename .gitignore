@@ -33,3 +33,4 @@ __pycache__/
 __pycache__/
 .env
 _backups_history/
+backup_wireguard_20260830/
