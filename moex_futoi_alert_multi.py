@@ -30,7 +30,7 @@ DB_PATH = os.path.join(os.path.dirname(__file__), 'futoi.db')
 load_dotenv()
 
 # [ИЗМЕНЕНИЕ]: Вместо одного символа используем список для поддержки нескольких тикеров
-SYMBOLS = ["SiZ6", "CRZ6", "MXZ6"]  # [MIGRATION 2026-09-23] U6 expired 17.09, switched to Z6
+SYMBOLS = ["SiZ6", "CRZ6", "MXZ6", "NGV6"]  # [MIGRATION 2026-09-23] U6 expired 17.09, switched to Z6; [NEW 2026-10-05] Added NGV6
 THRESHOLD = 10
 
 # [NEW 2026-08-25] Аномалии набора: адаптивные пороги
