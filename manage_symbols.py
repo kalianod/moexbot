@@ -77,6 +77,29 @@ def _check_syntax(filepath):
         return False
 
 
+def symbol_exists_in_api(symbol, lookback_days=3):
+    """
+    Проверяет существование тикера через MOEX ISS (FORTS).
+    moexalgo не валидирует тикеры, поэтому используем ISS.
+    lookback_days оставлен для обратной совместимости (не используется).
+    """
+    import requests
+    url = 'https://iss.moex.com/iss/engines/futures/markets/forts/securities.json'
+    params = {'q': symbol, 'iss.meta': 'off', 'iss.only': 'securities'}
+    try:
+        r = requests.get(url, params=params, timeout=15)
+        if r.status_code != 200:
+            return False, f"ISS HTTP {r.status_code}"
+        data = r.json()
+        rows = data.get('securities', {}).get('data', [])
+        matches = [row for row in rows if str(row[0]).upper() == symbol.upper()]
+        if not matches:
+            return False, f"Тикер {symbol} не найден на MOEX FORTS"
+        return True, ''
+    except Exception as e:
+        return False, f"Ошибка ISS: {str(e)[:200]}"
+
+
 def _db_execute_with_retry(conn, sql, params=(), max_attempts=5, delay=1.0):
     """Выполняет SQL (execute) с retry на database is locked."""
     for attempt in range(max_attempts):
@@ -355,6 +378,14 @@ def add_symbol(symbol, backfill_days=5, dry_run=False, run_backfill=True):
     if symbol in list_symbols():
         results['errors'].append(f"Символ {symbol} уже в списке активных")
         return results
+
+    # Проверка существования символа в API (только для реального add, не dry-run)
+    if not dry_run:
+        exists, reason = symbol_exists_in_api(symbol)
+        if not exists:
+            results['errors'].append(f"Символ {symbol} не прошёл проверку API: {reason}")
+            log_operation('ADD_REJECTED', symbol, {'reason': reason})
+            return results
 
     for filename, _kind in FILES_TO_MANAGE:
         filepath = BASE_DIR / filename

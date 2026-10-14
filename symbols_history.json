@@ -75,5 +75,34 @@
       "db_records_deleted": 1330,
       "errors": []
     }
+  },
+  {
+    "timestamp": "2026-10-14T16:53:41.931681",
+    "action": "ADD_REJECTED",
+    "symbol": "XXXXXX",
+    "details": {
+      "reason": "Тикер XXXXXX не найден на MOEX FORTS"
+    }
+  },
+  {
+    "timestamp": "2026-10-14T16:54:51.622207",
+    "action": "ADD",
+    "symbol": "NGX6",
+    "details": {
+      "backfill_days": 1,
+      "files_changed": 13,
+      "errors": []
+    }
+  },
+  {
+    "timestamp": "2026-10-14T16:55:36.334041",
+    "action": "REMOVE",
+    "symbol": "NGX6",
+    "details": {
+      "clean_db": true,
+      "files_changed": 13,
+      "db_records_deleted": 1778,
+      "errors": []
+    }
   }
 ]
