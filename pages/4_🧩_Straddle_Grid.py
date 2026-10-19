@@ -608,11 +608,11 @@ if slots:
             "side": s.get("side", ""),
             "state": s.get("state", ""),
             "price": float(s.get("price") or 0),
-            "exchange_price": entry_exch.get("price", ""),
+            "Биржевая цена": entry_exch.get("price", ""),
             "exits": len(exits_list),
             "exit_price": float(exit_first.get("price") or 0) if exit_first else None,
-            "exit_exch_price": exit_exch.get("price", ""),
-            "entry_override": s.get("entry_price_override"),
+            "Биржевая цена exit": exit_exch.get("price", ""),
+            "Ручная цена": s.get("entry_price_override"),
             "quantity": float(s.get("quantity") or 0),
             "entry_filled": float(s.get("entry_filled_qty") or 0),
             "exit_created": float(s.get("exit_created_qty") or 0),
@@ -629,7 +629,7 @@ if slots:
         st.caption(
             "Amend изменяет цену уже висящего ордера на бирже (Bybit /v5/order/amend). "
             "orderLinkId сохраняется, orderId не меняется. Работает для reduce_only. "
-            "Override — задаёт цену СЛЕДУЮЩЕЙ entry-заявки (применится после закрытия текущего цикла)."
+            "Ручная цена — задаёт цену СЛЕДУЮЩЕЙ entry-заявки (применится после закрытия текущего цикла)."
         )
 
         _slot_options = [s.get("slot_id", "") for s in slots]
@@ -705,14 +705,14 @@ if slots:
                 st.markdown("**🎯 Override цены следующей entry**")
                 _cur_ov = _sel.get("entry_price_override")
                 if _cur_ov:
-                    st.info(f"Текущий override: **{_cur_ov}**")
+                    st.info(f"Текущая ручная цена: **{_cur_ov}**")
                 else:
-                    st.caption("Override не задан — rearm будет использовать avg_entry_price.")
+                    st.caption("Ручная цена не задана — rearm будет использовать avg_entry_price.")
 
                 _ov1, _ov2, _ov3 = st.columns([2, 1, 1])
                 with _ov1:
                     _new_ov = st.number_input(
-                        "Новая цена override",
+                        "Новая ручная цена",
                         value=float(_cur_ov or _ex_price or _sel.get("price") or 0),
                         min_value=0.0,
                         step=0.01,
@@ -764,7 +764,7 @@ if slots:
                             "#": _i,
                             "order_link_id": _elink,
                             "local_price": _ex.get("price"),
-                            "exchange_price": _eexch.get("price", "—"),
+                            "Биржевая цена": _eexch.get("price", "—"),
                             "status": _eexch.get("status") or _ex.get("status"),
                             "filled": _ex.get("filled_qty"),
                             "remaining": _ex.get("remaining_qty"),
