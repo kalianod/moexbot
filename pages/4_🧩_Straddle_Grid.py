@@ -702,7 +702,7 @@ if slots:
 
                 # ---- entry_price_override ----
                 st.markdown("---")
-                st.markdown("**🎯 Override цены следующей entry**")
+                st.markdown("**🎯 Ручная цена следующей заявки**")
                 _cur_ov = _sel.get("entry_price_override")
                 if _cur_ov:
                     st.info(f"Текущая ручная цена: **{_cur_ov}**")
