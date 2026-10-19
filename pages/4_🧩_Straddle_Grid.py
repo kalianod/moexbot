@@ -576,14 +576,43 @@ st.markdown("---")
 st.subheader("🧾 Состояние слотов")
 
 slots = st.session_state.get("straddle_slots", [])
+
+# [ADD] Map orderLinkId -> real exchange data (price, status, order_id)
+exchange_map = {}
+try:
+    if oo_res and oo_res.get("ok"):
+        for _o in (oo_res.get("orders") or []):
+            _link = _o.get("orderLinkId") or ""
+            if _link:
+                exchange_map[_link] = {
+                    "price": _o.get("price"),
+                    "status": _o.get("orderStatus"),
+                    "order_id": _o.get("orderId"),
+                    "side": _o.get("side"),
+                }
+except Exception:
+    exchange_map = {}
+
 if slots:
     slot_rows = []
     for s in slots:
+        entry_link = s.get("order_link_id") or ""
+        entry_exch = exchange_map.get(entry_link, {}) or {}
+        exits_list = s.get("exit_orders") or []
+        exit_first = exits_list[0] if exits_list else {}
+        exit_link = exit_first.get("order_link_id") or ""
+        exit_exch = exchange_map.get(exit_link, {}) or {}
+
         slot_rows.append({
             "slot_id": s.get("slot_id", ""),
             "side": s.get("side", ""),
             "state": s.get("state", ""),
             "price": float(s.get("price") or 0),
+            "exchange_price": entry_exch.get("price", ""),
+            "exits": len(exits_list),
+            "exit_price": float(exit_first.get("price") or 0) if exit_first else None,
+            "exit_exch_price": exit_exch.get("price", ""),
+            "entry_override": s.get("entry_price_override"),
             "quantity": float(s.get("quantity") or 0),
             "entry_filled": float(s.get("entry_filled_qty") or 0),
             "exit_created": float(s.get("exit_created_qty") or 0),
@@ -594,6 +623,210 @@ if slots:
     st.dataframe(slot_df, use_container_width=True, hide_index=True)
     with st.expander("Полные данные слотов (JSON)"):
         st.json(slots)
+
+    # ==================== [ADD] УПРАВЛЕНИЕ ОРДЕРАМИ ====================
+    with st.expander("🔧 Управление ордерами", expanded=False):
+        st.caption(
+            "Amend изменяет цену уже висящего ордера на бирже (Bybit /v5/order/amend). "
+            "orderLinkId сохраняется, orderId не меняется. Работает для reduce_only. "
+            "Override — задаёт цену СЛЕДУЮЩЕЙ entry-заявки (применится после закрытия текущего цикла)."
+        )
+
+        _slot_options = [s.get("slot_id", "") for s in slots]
+        mg_col1, mg_col2 = st.columns([2, 1])
+        with mg_col1:
+            mg_slot_id = st.selectbox(
+                "Слот", _slot_options, key="sg_mg_slot"
+            )
+        with mg_col2:
+            mg_target = st.radio(
+                "Цель", ["entry", "exit"],
+                horizontal=True, key="sg_mg_target",
+            )
+
+        _sel = next((x for x in slots if x.get("slot_id") == mg_slot_id), None)
+
+        if not _sel:
+            st.error("Слот не найден.")
+        else:
+            _state = str(_sel.get("state") or "").upper()
+            st.markdown(f"**Состояние:** `{_state}`")
+
+            # ---------- ENTRY ----------
+            if mg_target == "entry":
+                _entry_link = _sel.get("order_link_id") or ""
+                _entry_exch = exchange_map.get(_entry_link, {}) or {}
+                st.markdown(f"**orderLinkId:** `{_entry_link or '—'}`")
+                st.markdown(f"**Плановая цена (slot.price):** `{_sel.get('price')}`")
+
+                if _entry_exch:
+                    _ex_price = float(_entry_exch.get("price") or 0)
+                    st.markdown(
+                        f"**Цена на бирже:** `{_entry_exch.get('price')}` "
+                        f"(status: {_entry_exch.get('status')})"
+                    )
+                else:
+                    st.info("Ордер не найден в open_orders (исполнен / отменён / ещё не выставлен).")
+                    _ex_price = 0.0
+
+                # ---- Amend entry (только для активных состояний) ----
+                if _state in ("PLACED", "ENTRY_OPEN", "ENTRY_PARTIALLY_FILLED") and _entry_link:
+                    st.markdown("---")
+                    st.markdown("**✏️ Amend entry (изменить цену на бирже)**")
+                    _ac1, _ac2 = st.columns([2, 1])
+                    with _ac1:
+                        _new_entry_price = st.number_input(
+                            "Новая цена entry",
+                            value=float(_ex_price or _sel.get("price") or 0),
+                            min_value=0.0,
+                            step=0.01,
+                            format="%.2f",
+                            key="sg_amend_entry_price",
+                        )
+                    with _ac2:
+                        st.write(""); st.write("")
+                        if st.button("Amend", use_container_width=True, key="sg_amend_entry_btn"):
+                            if abs(_new_entry_price - _ex_price) < 1e-6:
+                                st.warning("Цена не изменилась.")
+                            else:
+                                _r = api_request(
+                                    "POST", "/straddle/amend-order",
+                                    payload={
+                                        "confirm": True,
+                                        "slot_id": mg_slot_id,
+                                        "target": "entry",
+                                        "new_price": float(_new_entry_price),
+                                    },
+                                )
+                                finish_action(_r, reload_draft=False, reload_slots=True)
+
+                # ---- entry_price_override ----
+                st.markdown("---")
+                st.markdown("**🎯 Override цены следующей entry**")
+                _cur_ov = _sel.get("entry_price_override")
+                if _cur_ov:
+                    st.info(f"Текущий override: **{_cur_ov}**")
+                else:
+                    st.caption("Override не задан — rearm будет использовать avg_entry_price.")
+
+                _ov1, _ov2, _ov3 = st.columns([2, 1, 1])
+                with _ov1:
+                    _new_ov = st.number_input(
+                        "Новая цена override",
+                        value=float(_cur_ov or _ex_price or _sel.get("price") or 0),
+                        min_value=0.0,
+                        step=0.01,
+                        format="%.2f",
+                        key="sg_ov_price",
+                    )
+                with _ov2:
+                    st.write(""); st.write("")
+                    if st.button("Задать", use_container_width=True, key="sg_set_ov"):
+                        _r = api_request(
+                            "POST", "/straddle/set-entry-override",
+                            payload={
+                                "confirm": True,
+                                "slot_id": mg_slot_id,
+                                "price": float(_new_ov),
+                            },
+                        )
+                        finish_action(_r, reload_draft=False, reload_slots=True)
+                with _ov3:
+                    st.write(""); st.write("")
+                    if st.button(
+                        "Снять", use_container_width=True,
+                        disabled=not bool(_cur_ov),
+                        key="sg_clear_ov",
+                    ):
+                        _r = api_request(
+                            "POST", "/straddle/set-entry-override",
+                            payload={
+                                "confirm": True,
+                                "slot_id": mg_slot_id,
+                                "price": None,
+                            },
+                        )
+                        finish_action(_r, reload_draft=False, reload_slots=True)
+
+            # ---------- EXIT ----------
+            else:
+                _exits = _sel.get("exit_orders") or []
+                if not _exits:
+                    st.info("У слота нет exit-ордеров.")
+                else:
+                    st.markdown(f"**Exit-ордеров:** {len(_exits)}")
+
+                    _ex_rows = []
+                    for _i, _ex in enumerate(_exits):
+                        _elink = _ex.get("order_link_id") or ""
+                        _eexch = exchange_map.get(_elink, {}) or {}
+                        _ex_rows.append({
+                            "#": _i,
+                            "order_link_id": _elink,
+                            "local_price": _ex.get("price"),
+                            "exchange_price": _eexch.get("price", "—"),
+                            "status": _eexch.get("status") or _ex.get("status"),
+                            "filled": _ex.get("filled_qty"),
+                            "remaining": _ex.get("remaining_qty"),
+                        })
+                    st.dataframe(
+                        pd.DataFrame(_ex_rows),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+                    _idx_options = list(range(len(_exits)))
+                    _sel_idx = st.selectbox(
+                        "Какой exit менять?",
+                        _idx_options,
+                        format_func=lambda i: (
+                            f"exit #{i} @ {_exits[i].get('price')} "
+                            f"({(exchange_map.get(_exits[i].get('order_link_id') or '', {}) or {}).get('status', '?')})"
+                        ),
+                        key="sg_select_exit_idx",
+                    )
+
+                    if _sel_idx is not None:
+                        _ex_obj = _exits[_sel_idx]
+                        _ex_obj_link = _ex_obj.get("order_link_id") or ""
+                        _ex_obj_exch = exchange_map.get(_ex_obj_link, {}) or {}
+                        _ex_obj_status = str(
+                            _ex_obj_exch.get("status") or _ex_obj.get("status") or ""
+                        ).upper()
+
+                        if _ex_obj_status in ("FILLED", "CLOSED", "CANCELED", "CANCELLED", "REJECTED"):
+                            st.warning(f"Exit #{_sel_idx} в терминальном статусе: {_ex_obj_status}. Amend невозможен.")
+                        else:
+                            _cur_ex_price = float(
+                                _ex_obj_exch.get("price") or _ex_obj.get("price") or 0
+                            )
+                            _ec1, _ec2 = st.columns([2, 1])
+                            with _ec1:
+                                _new_ex_price = st.number_input(
+                                    "Новая цена exit",
+                                    value=_cur_ex_price,
+                                    min_value=0.0,
+                                    step=0.01,
+                                    format="%.2f",
+                                    key="sg_amend_exit_price",
+                                )
+                            with _ec2:
+                                st.write(""); st.write("")
+                                if st.button("Amend exit", use_container_width=True, key="sg_amend_exit_btn"):
+                                    if abs(_new_ex_price - _cur_ex_price) < 1e-6:
+                                        st.warning("Цена не изменилась.")
+                                    else:
+                                        _r = api_request(
+                                            "POST", "/straddle/amend-order",
+                                            payload={
+                                                "confirm": True,
+                                                "slot_id": mg_slot_id,
+                                                "target": "exit",
+                                                "exit_index": int(_sel_idx),
+                                                "new_price": float(_new_ex_price),
+                                            },
+                                        )
+                                        finish_action(_r, reload_draft=False, reload_slots=True)
 else:
     st.info("Слотов пока нет. Они появятся после выставления ордеров.")
 

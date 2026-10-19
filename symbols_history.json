@@ -104,5 +104,15 @@
       "db_records_deleted": 1778,
       "errors": []
     }
+  },
+  {
+    "timestamp": "2026-10-14T17:13:27.357093",
+    "action": "ADD",
+    "symbol": "BRX6",
+    "details": {
+      "backfill_days": 3,
+      "files_changed": 13,
+      "errors": []
+    }
   }
 ]
