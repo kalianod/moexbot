@@ -596,26 +596,31 @@ except Exception:
 if slots:
     slot_rows = []
     for s in slots:
-        entry_link = s.get("order_link_id") or ""
-        entry_exch = exchange_map.get(entry_link, {}) or {}
         exits_list = s.get("exit_orders") or []
         exit_first = exits_list[0] if exits_list else {}
-        exit_link = exit_first.get("order_link_id") or ""
-        exit_exch = exchange_map.get(exit_link, {}) or {}
+
+        price_val = float(s.get("price") or 0)
+        exit_price_val = float(exit_first.get("price") or 0) if exit_first else 0
+        side_val = s.get("side", "")
+
+        # [NEW] Δ% - ожидаемая прибыль цикла (только для EXIT_OPEN)
+        delta_pct = None
+        if exit_price_val > 0 and price_val > 0:
+            if side_val == "Buy":
+                delta_pct = (exit_price_val - price_val) / price_val * 100
+            else:
+                delta_pct = (price_val - exit_price_val) / price_val * 100
 
         slot_rows.append({
             "slot_id": s.get("slot_id", ""),
-            "side": s.get("side", ""),
+            "side": side_val,
             "state": s.get("state", ""),
-            "price": float(s.get("price") or 0),
-            "Биржевая цена": entry_exch.get("price", ""),
-            "exits": len(exits_list),
-            "exit_price": float(exit_first.get("price") or 0) if exit_first else None,
-            "Биржевая цена exit": exit_exch.get("price", ""),
+            "cycle": s.get("cycle_id", ""),
+            "price": price_val,
             "Ручная цена": s.get("entry_price_override"),
-            "quantity": float(s.get("quantity") or 0),
+            "exit_price": exit_price_val if exit_price_val > 0 else None,
+            "Δ%": round(delta_pct, 2) if delta_pct is not None else None,
             "entry_filled": float(s.get("entry_filled_qty") or 0),
-            "exit_created": float(s.get("exit_created_qty") or 0),
             "exit_filled": float(s.get("exit_filled_qty") or 0),
             "last_error": s.get("last_error") or "",
         })
