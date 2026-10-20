@@ -594,8 +594,25 @@ except Exception:
     exchange_map = {}
 
 if slots:
+    import re as _re_sort
+
+    def _slot_sort_key(s):
+        """Sort: sell-5, sell-4, ..., sell-1, buy-1, buy-2, ..., buy-5"""
+        sid = str(s.get("slot_id") or "")
+        m = _re_sort.search(r"-(sell|buy)-(\d+)$", sid)
+        if m:
+            _sn = m.group(1)
+            _idx = int(m.group(2))
+            # sells first (priority 0), DESC by index
+            # buys second (priority 1), ASC by index
+            return (0, -_idx) if _sn == "sell" else (1, _idx)
+        # Fallback: by price desc
+        return (2, -float(s.get("price") or 0))
+
+    _sorted_slots = sorted(slots, key=_slot_sort_key)
+
     slot_rows = []
-    for s in slots:
+    for s in _sorted_slots:
         exits_list = s.get("exit_orders") or []
         exit_first = exits_list[0] if exits_list else {}
 
@@ -603,7 +620,6 @@ if slots:
         exit_price_val = float(exit_first.get("price") or 0) if exit_first else 0
         side_val = s.get("side", "")
 
-        # [NEW] Δ% - ожидаемая прибыль цикла (только для EXIT_OPEN)
         delta_pct = None
         if exit_price_val > 0 and price_val > 0:
             if side_val == "Buy":
@@ -620,8 +636,6 @@ if slots:
             "Ручная цена": s.get("entry_price_override"),
             "exit_price": exit_price_val if exit_price_val > 0 else None,
             "Δ%": round(delta_pct, 2) if delta_pct is not None else None,
-            "entry_filled": float(s.get("entry_filled_qty") or 0),
-            "exit_filled": float(s.get("exit_filled_qty") or 0),
             "last_error": s.get("last_error") or "",
         })
     slot_df = pd.DataFrame(slot_rows)
