@@ -619,13 +619,18 @@ if slots:
         price_val = float(s.get("price") or 0)
         exit_price_val = float(exit_first.get("price") or 0) if exit_first else 0
         side_val = s.get("side", "")
+        avg_entry_val = float(s.get("avg_entry_price") or 0)
+
+        # [FIX 2026-10-20] Use actual entry fill price, not planned level price
+        # avg_entry_price is set after fill and may differ from price (due to auto-shift)
+        base_price = avg_entry_val if avg_entry_val > 0 else price_val
 
         delta_pct = None
-        if exit_price_val > 0 and price_val > 0:
+        if exit_price_val > 0 and base_price > 0:
             if side_val == "Buy":
-                delta_pct = (exit_price_val - price_val) / price_val * 100
+                delta_pct = (exit_price_val - base_price) / base_price * 100
             else:
-                delta_pct = (price_val - exit_price_val) / price_val * 100
+                delta_pct = (base_price - exit_price_val) / base_price * 100
 
         slot_rows.append({
             "slot_id": s.get("slot_id", ""),
