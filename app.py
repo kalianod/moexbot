@@ -326,6 +326,23 @@ def load_trap(symbol):
     return d
 
 df_trap = load_trap(symbol)
+# [ADD 2026-10-22] Загрузка аномалий OTC для визуализации (панель видна всегда)
+@st.cache_data(ttl=60)
+def load_otc_suspects(sym, start, end):
+    conn = sqlite3.connect(DB_PATH)
+    # Загружаем только flagged бары для экономии памяти и чистоты графика
+    q = """
+        SELECT bar_ts, delta_oi, volume, delta_oi_ratio, otc_suspect, otc_strict, oi_direction
+        FROM otc_suspect_events
+        WHERE symbol = ? AND bar_ts BETWEEN ? AND ?
+        ORDER BY bar_ts
+    """
+    df = pd.read_sql_query(q, conn, params=(sym, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d 23:59:59')), parse_dates=['bar_ts'])
+    conn.close()
+    return df
+
+df_otc = load_otc_suspects(symbol, start_date, end_date)
+
 
 # ==================== ГРАФИК ====================
 if df_candles.empty:
@@ -393,12 +410,18 @@ else:
             )
             annotation_count[0] += 1
 
-        # SUBPLOT: 2 строки — свечи (80%) + объём (20%)
-        # [NEW 2026-08-31] 3-й ряд графика при включённом пассивном объёме
+        # SUBPLOT: Свечи + объём + (опц.) пассивный юр + OTC (всегда нижний ряд)
+        # [MOD 2026-10-22] OTC-панель всегда видна новым нижним рядом
         _show_passive = st.session_state.show_passive_yur and not df_passive.empty
+        num_rows = 4 if _show_passive else 3
+        if _show_passive:
+            row_heights = [0.55, 0.15, 0.15, 0.15]  # Свечи, Объем, Пассивный Ю, OTC
+        else:
+            row_heights = [0.65, 0.20, 0.15]         # Свечи, Объем, OTC
+
         fig = make_subplots(
-            rows=3 if _show_passive else 2, cols=1, shared_xaxes=True,
-            row_heights=[0.7, 0.15, 0.15] if _show_passive else [0.8, 0.2],
+            rows=num_rows, cols=1, shared_xaxes=True,
+            row_heights=row_heights,
             vertical_spacing=0.02
         )
         
@@ -856,6 +879,49 @@ else:
                             share = num / den * 100
                             if share > yur_share_threshold and y_short >= yur_contracts_threshold:
                                 add_yur_share_marker(candle['begin'], candle['low'], y_short, share, '#EF5350', -95, 'Юр: доля в росте short')
+
+        # ========== [MOD 2026-10-22] ПАНЕЛЬ OTC ОБЪЁМА (всегда нижний ряд) ==========
+        if not df_otc.empty:
+            # Создаем списки для отрисовки: высота, цвет, прозрачность
+            y_vals = []
+            otc_colors = []
+            opacities = []
+            hover_otc = []
+            
+            for _, r in df_otc.iterrows():
+                if r['otc_suspect'] == 1:
+                    # Это аномалия — рисуем высокий бар
+                    y_vals.append(r['delta_oi'])
+                    otc_colors.append('#26A69A' if r['oi_direction'] == 'open' else '#EF5350')
+                    # Строгие аномалии (k=4) яркие (1.0), обычные (k=2) чуть бледнее (0.7)
+                    opacities.append(1.0 if r['otc_strict'] == 1 else 0.7)
+                    hover_otc.append(
+                        f"<b>OTC Аномалия: {r['bar_ts'].strftime('%d.%m %H:%M')}</b><br>"
+                        f"ΔOI: {int(r['delta_oi']):+,d}<br>"
+                        f"Объём: {int(r['volume']):,d}<br>"
+                        f"Ratio: {r['delta_oi_ratio']:.2f}<br>"
+                        f"Направление: {'Открытие' if r['oi_direction']=='open' else 'Закрытие'}<br>"
+                        f"Строгий (k=4): {'Да' if r['otc_strict'] else 'Нет'}"
+                    )
+                else:
+                    # Это обычный бар — рисуем нулевой и невидимый, чтобы ось X не растягивалась
+                    y_vals.append(0)
+                    otc_colors.append('rgba(0,0,0,0)')
+                    opacities.append(0.0)
+                    hover_otc.append("") # Пустой hover для невидимых баров
+
+            fig.add_trace(go.Bar(
+                x=df_otc['bar_ts'], 
+                y=y_vals,
+                marker=dict(color=otc_colors, opacity=opacities),
+                text=hover_otc, 
+                hoverinfo='text', 
+                showlegend=False, 
+                name="OTC Аномалии",
+                width=300000 # Фиксируем ширину бара в миллисекундах (5 минут), чтобы они были узкими
+            ), row=num_rows, col=1)
+            
+        fig.update_yaxes(title_text="ΔOI (контр.)", row=num_rows, col=1)
 
         fig.update_layout(
             height=(900 if _show_passive else 750) if is_mobile else (1150 if _show_passive else 1000), template="plotly_dark",

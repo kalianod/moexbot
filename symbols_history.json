@@ -114,5 +114,15 @@
       "files_changed": 13,
       "errors": []
     }
+  },
+  {
+    "timestamp": "2026-10-22T05:39:30.079477",
+    "action": "ADD",
+    "symbol": "BTV6",
+    "details": {
+      "backfill_days": 10,
+      "files_changed": 13,
+      "errors": []
+    }
   }
 ]

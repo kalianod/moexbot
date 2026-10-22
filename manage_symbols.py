@@ -42,7 +42,6 @@ FILES_TO_MANAGE = [
     ('compute_squeeze.py', 'compute'),
     ('app.py', 'dashboard'),
     ('pages/1_📊_Таблица_FIZ_YUR.py', 'dashboard'),
-    ('pages/2_💼_OTC_объём.py', 'dashboard'),
     ('backfill_bar_stats.py', 'backfill'),
     ('backfill_tradestats.py', 'backfill'),
     ('backfill_futoi.py', 'backfill'),
@@ -52,7 +51,7 @@ FILES_TO_MANAGE = [
 TABLES_TO_CLEAN = [
     'futoi_data', 'bar_stats', 'tradestats_data', 'candles_cache',
     'squeeze_events', 'trap_events', 'yur_absorption', 'divergence_events',
-    'whale_events', 'breakout_combo', 'otc_trades', 'legal_passive_estimate',
+    'whale_events', 'breakout_combo', 'legal_passive_estimate',
 ]
 
 

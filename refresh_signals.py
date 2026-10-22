@@ -10,6 +10,7 @@ for script in [
     'compute_signals.py',          # дивергенции/whale/комбо
     'compute_squeeze.py',          # сквизы
     'compute_trap.py',             # ловушки
+    'compute_otc_suspect.py',             # OTC-подозрение (ATAS: |ΔOI| > k×Volume)
 ]:
     r = subprocess.run([PY, script], capture_output=True, text=True)
     if r.returncode != 0:
