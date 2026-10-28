@@ -6,9 +6,10 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 from pathlib import Path
 import os
+import pandas as pd
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).parent / '.env')
 DB_PATH = Path(__file__).parent / 'futoi.db'
 
 # Настройки SMTP
@@ -39,7 +40,6 @@ def send_email(subject, body):
     msg['To'] = EMAIL_TO
 
     try:
-        # Яндекс использует SSL на порту 465
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
@@ -70,38 +70,55 @@ def main():
         # Если таблица пуста, берем последние 180 минут
         last_sent = now - timedelta(minutes=INTERVAL_MIN)
 
-    # 2. Ищем события, которые еще не отправляли
     last_sent_str = last_sent.strftime('%Y-%m-%d %H:%M:%S')
-    q = """
-        SELECT symbol, bar_ts, delta_oi, volume, delta_oi_ratio, oi_direction, otc_strict
+
+    # 2.1 Ищем события MOEX
+    q_moex = """
+        SELECT symbol, bar_ts as ts, delta_oi, volume, delta_oi_ratio, oi_direction as direction, otc_strict
         FROM otc_suspect_events
-        WHERE (otc_suspect = 1 OR otc_strict = 1)
-          AND bar_ts > ?
+        WHERE (otc_suspect = 1 OR otc_strict = 1) AND bar_ts > ?
         ORDER BY bar_ts DESC
     """
-    df = pd.read_sql_query(q, conn, params=(last_sent_str,))
+    df_moex = pd.read_sql_query(q_moex, conn, params=(last_sent_str,))
     
-    if df.empty:
+    # 2.2 Ищем события Bybit (только is_outlier = 1)
+    q_bybit = """
+        SELECT symbol, timestamp as ts, delta_oi, volume, z_score
+        FROM bybit_otc_events
+        WHERE is_outlier = 1 AND timestamp > ?
+        ORDER BY timestamp DESC
+    """
+    df_bybit = pd.read_sql_query(q_bybit, conn, params=(last_sent_str,))
+
+    if df_moex.empty and df_bybit.empty:
         print(f"📭 Нет новых OTC-событий после {last_sent_str}. Письмо не отправляем.")
         conn.close()
         return
 
     # 3. Формируем текст письма
-    subject = f"OTC Аномалии: {len(df)} событий (с {last_sent.strftime('%d.%m %H:%M')})"
+    total_events = len(df_moex) + len(df_bybit)
+    subject = f"OTC Аномалии: {total_events} событий (с {last_sent.strftime('%d.%m %H:%M')})"
     
-    body = f"Найдены аномалии открытого интереса (методика ATAS) за период с {last_sent.strftime('%d.%m %H:%M')} по {now.strftime('%d.%m %H:%M')}:\n\n"
+    body = f"Найдены аномалии открытого интереса за период с {last_sent.strftime('%d.%m %H:%M')} по {now.strftime('%d.%m %H:%M')}:\n\n"
     
-    for _, r in df.iterrows():
-        strict_mark = "🔥 СТРОГАЯ (k=4)" if r['otc_strict'] == 1 else "⚠️ Базовая (k=2)"
-        body += f"📊 {r['symbol']} | {r['bar_ts']} | {strict_mark}\n"
-        body += f"   ΔOI: {int(r['delta_oi']):+,d} | Объём: {int(r['volume']):,d} | Ratio: {r['delta_oi_ratio']:.2f}\n"
-        body += f"   Направление: {'Открытие' if r['oi_direction']=='open' else 'Закрытие'}\n\n"
-        
+    if not df_moex.empty:
+        body += "=== MOEX (Futures) ===\n"
+        for _, r in df_moex.iterrows():
+            strict_mark = "🔥 СТРОГАЯ (k=4)" if r['otc_strict'] == 1 else "⚠️ Базовая (k=2)"
+            body += f"📊 {r['symbol']} | {r['ts']} | {strict_mark}\n"
+            body += f"   ΔOI: {int(r['delta_oi']):+,d} | Объём: {int(r['volume']):,d} | Ratio: {r['delta_oi_ratio']:.2f}\n"
+            body += f"   Направление: {'Открытие' if r['direction']=='open' else 'Закрытие'}\n\n"
+            
+    if not df_bybit.empty:
+        body += "=== Bybit (ETHUSDT Perp) ===\n"
+        for _, r in df_bybit.iterrows():
+            body += f"📊 {r['symbol']} | {r['ts']} (4H)\n"
+            body += f"   ΔOI: {int(r['delta_oi']):+,d} ETH | Объём: {int(r['volume']):,d} ETH | Z-score: {r['z_score']:.2f}\n\n"
+            
     body += "\n---\nАвтоматическое сообщение от MOEX Dashboard Bot"
 
     # 4. Отправка
     if send_email(subject, body):
-        # Обновляем время только при успешной отправке
         cursor.execute("""
             INSERT INTO otc_email_state (id, last_sent_at) VALUES (1, ?)
             ON CONFLICT(id) DO UPDATE SET last_sent_at = excluded.last_sent_at
@@ -111,5 +128,4 @@ def main():
     conn.close()
 
 if __name__ == '__main__':
-    import pandas as pd
     main()

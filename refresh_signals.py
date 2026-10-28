@@ -11,6 +11,7 @@ for script in [
     'compute_squeeze.py',          # сквизы
     'compute_trap.py',             # ловушки
     'compute_otc_suspect.py',             # OTC-подозрение (ATAS: |ΔOI| > k×Volume)
+    'compute_bybit_otc.py',          # Bybit OTC (4H, Z-score)
     'notify_otc_email.py',             # OTC-дайджест на почту (раз в 180 мин)
 ]:
     r = subprocess.run([PY, script], capture_output=True, text=True)
